@@ -1873,6 +1873,13 @@
 
     function sheetsGet(sheet) {
       return new Promise((resolve) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(res => resolve(res.rows || []))
+            .withFailureHandler(err => { console.error(err); resolve([]); })
+            .readSheet(sheet);
+          return;
+        }
         const cbName = 'cb_' + sheet + '_' + Date.now() + '_' + Math.floor(Math.random()*100000);
         const script = document.createElement('script');
         window[cbName] = (json) => {
@@ -1888,6 +1895,20 @@
 
     function sheetsPost(action, sheet, dataObj) {
       return new Promise((resolve) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(res => {
+              if (res && res.error) toast('Google Sheet Error: ' + res.error, 'error');
+              resolve(res);
+            })
+            .withFailureHandler(err => {
+              toast('Network Error: Could not save to ' + sheet, 'error');
+              resolve({ error: err.message });
+            })
+            .handlePost({ action, sheet, data: dataObj });
+          return;
+        }
+
         try {
           const cbName = 'cbp_' + Date.now() + '_' + Math.floor(Math.random()*100000);
           const script = document.createElement('script');
