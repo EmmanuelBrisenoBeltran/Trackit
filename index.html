@@ -1873,7 +1873,7 @@
 
     function sheetsGet(sheet) {
       return new Promise((resolve) => {
-        const cbName = 'cb_' + sheet + '_' + Date.now();
+        const cbName = 'cb_' + sheet + '_' + Date.now() + '_' + Math.floor(Math.random()*100000);
         const script = document.createElement('script');
         window[cbName] = (json) => {
           delete window[cbName];
@@ -1888,7 +1888,7 @@
 
     function sheetsPost(action, sheet, data) {
       return new Promise((resolve) => {
-        const cbName = 'cbp_' + Date.now();
+        const cbName = 'cbp_' + Date.now() + '_' + Math.floor(Math.random()*100000);
         const script = document.createElement('script');
         window[cbName] = (json) => {
           delete window[cbName];
@@ -2433,7 +2433,7 @@
       openModal('item-modal');
     }
 
-    function saveItem() {
+    async function saveItem() {
       const name = document.getElementById('f-name').value.trim();
       if (!name) { toast('Item name is required', 'error'); return; }
       const loc = document.getElementById('f-loc').value;
@@ -2454,7 +2454,7 @@
           item.notes = document.getElementById('f-notes').value;
           item.uidType = document.getElementById('f-uid-type').value;
           item.uid = document.getElementById('f-uid').value;
-          updateItemInSheets(item);
+          await updateItemInSheets(item);
         }
         toast('Item updated in Google Sheets ✓', 'success');
       } else {
@@ -2478,8 +2478,8 @@
           created: new Date().toISOString().split('T')[0],
         });
         addHistory(`${name} added to ${locObj ? locObj.name : loc}`, 'add');
-        saveItemToSheets(data.items[data.items.length - 1]);
-        saveHistoryToSheets(`${name} added to ${locObj ? locObj.name : loc}`, 'add');
+        await saveItemToSheets(data.items[data.items.length - 1]);
+        await saveHistoryToSheets(`${name} added to ${locObj ? locObj.name : loc}`, 'add');
         toast('Item saved to Google Sheets ✓', 'success');
       }
       closeModal('item-modal');
@@ -2493,7 +2493,7 @@
       openModal('worker-modal');
     }
 
-    function saveWorker() {
+    async function saveWorker() {
       const fname = document.getElementById('wf-fname').value.trim();
       const lname = document.getElementById('wf-lname').value.trim();
       if (!fname || !lname) { toast('Name is required', 'error'); return; }
@@ -2508,8 +2508,8 @@
       newWorker.barcode = 'WRK-' + newWorker.id;
       data.workers.push(newWorker);
       addHistory(`Worker ${fname} ${lname} registered`, 'add');
-      saveWorkerToSheets(data.workers[data.workers.length - 1]);
-      saveHistoryToSheets(`Worker ${fname} ${lname} registered`, 'add');
+      await saveWorkerToSheets(data.workers[data.workers.length - 1]);
+      await saveHistoryToSheets(`Worker ${fname} ${lname} registered`, 'add');
       toast('Worker saved to Google Sheets ✓', 'success');
       closeModal('worker-modal');
       renderAll();
@@ -2517,7 +2517,7 @@
     }
 
     // ─── LOCATION MODAL ───────────────────────────────────────────
-    function saveLocation() {
+    async function saveLocation() {
       const name = document.getElementById('lf-name').value.trim();
       if (!name) { toast('Location name required', 'error'); return; }
       const id = 'LOC' + String(data.locations.length + 1).padStart(3, '0');
@@ -2528,8 +2528,8 @@
         admin: document.getElementById('lf-admin').value,
       });
       addHistory(`Location "${name}" added`, 'add');
-      saveLocationToSheets(data.locations[data.locations.length - 1]);
-      saveHistoryToSheets(`Location "${name}" added`, 'add');
+      await saveLocationToSheets(data.locations[data.locations.length - 1]);
+      await saveHistoryToSheets(`Location "${name}" added`, 'add');
       toast('Location saved to Google Sheets ✓', 'success');
       closeModal('location-modal');
       populateLocationSelects();
@@ -2809,19 +2809,19 @@
     }
 
     function printLabel(code, name) {
-      const win = window.open('', '_blank', 'width=400,height=300');
+      const win = window.open('', '_blank', 'width=1000,height=800');
       win.document.write(`<!DOCTYPE html><html><head><title>Label</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
     <style>
-      @page { size: 60mm 30mm; margin: 0; padding: 0; }
-      html, body { margin: 0; padding: 0; width: 60mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
+      @page { size: 50mm 30mm; margin: 0; padding: 0; }
+      html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
       .label { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1mm; text-align: center; border: none; outline: none; }
       h2 { font-size: 13px; margin: 0 0 2px 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 48mm; font-weight: bold; line-height: 1.2; text-overflow: ellipsis; }
       p { font-size: 10px; margin: 2px 0 0 0; text-align: center; font-family: monospace; font-weight: bold; }
-      svg { width: 100%; max-width: 46mm; height: auto !important; max-height: 12mm; border: none; shape-rendering: crispEdges; }
+      svg { height: auto !important; max-height: 12mm; border: none; shape-rendering: crispEdges; }
     </style></head>
     <body><div class="label"><h2>${name}</h2><svg id="bc"></svg><p>${code}</p></div>
-    <script>JsBarcode('#bc','${code}',{format:'CODE128',width:2,height:25,displayValue:false,margin:0});<\/script>
+    <script>JsBarcode('#bc','${code}',{format:'CODE128',width:1,height:25,displayValue:false,margin:0});<\/script>
     <script>window.onload=()=>setTimeout(()=>{window.print();window.close();},300)<\/script>
     </body></html>`);
       win.document.close();
@@ -3259,6 +3259,7 @@
           <div class="detail-row"><span class="detail-key">Location</span><span class="detail-val">${loc ? loc.name : '—'}</span></div>
           <div style="margin-top:14px;display:flex;gap:8px;">
             <button class="btn btn-primary btn-sm" onclick="openWorkerDetail('${worker.id}')">View Profile</button>
+            <button class="btn btn-ghost btn-sm" onclick="printWorkerBadge(data.workers.find(w => w.id === '${worker.id}'), '${worker.barcode || ('WRK-' + worker.id)}')">Print Badge</button>
           </div>
         </div>`;
           toast('Worker found: ' + worker.fname, 'success');
@@ -3275,23 +3276,23 @@
       const w = data.workers.find(x => x.id === workerId);
       if (!w) return;
       const code = w.barcode || ('WRK-' + w.id);
-      const win = window.open('', '_blank', 'width=400,height=320');
+      const win = window.open('', '_blank', 'width=1000,height=800');
       win.document.write(`<!DOCTYPE html><html><head><title>Worker Badge</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
     <style>
-      @page { size: 60mm 30mm; margin: 0; padding: 0; }
-      html, body { margin: 0; padding: 0; width: 60mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
+      @page { size: 50mm 30mm; margin: 0; padding: 0; }
+      html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
       .badge { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1mm; text-align: center; border: none; outline: none; }
       h2 { font-size: 12px; margin: 0 0 1px 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 48mm; font-weight: bold; line-height: 1.2; text-overflow: ellipsis; }
       .role { font-size: 10px; color: #333; margin: 0 0 2px 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 48mm; text-overflow: ellipsis; line-height: 1.1; }
       p { font-size: 10px; margin: 2px 0 0 0; text-align: center; font-family: monospace; font-weight: bold; }
-      svg { width: 100%; max-width: 46mm; height: auto !important; max-height: 11mm; border: none; shape-rendering: crispEdges; }
+      svg { height: auto !important; max-height: 11mm; border: none; shape-rendering: crispEdges; }
     </style></head>
     <body><div class="badge">
     <h2>${w.fname} ${w.lname}</h2>
     <div class="role">${w.role || ''} ${w.eid ? '· ' + w.eid : ''}</div>
     <svg id="bc"></svg><p>${code}</p></div>
-    <script>JsBarcode('#bc','${code}',{format:'CODE128',width:2,height:22,displayValue:false,margin:0});<\/script>
+    <script>JsBarcode('#bc','${code}',{format:'CODE128',width:1,height:22,displayValue:false,margin:0});<\/script>
     <script>window.onload=()=>setTimeout(()=>{window.print();window.close();},300)<\/script>
     </body></html>`);
       win.document.close();
