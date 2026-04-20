@@ -2097,35 +2097,13 @@
 
     // ─── DATA STORE ───────────────────────────────────────────────
     let data = {
-      locations: [
-        { id: 'LOC001', name: 'Warehouse North', address: '450 Industrial Ave', type: 'Warehouse', admin: 'Maria G.' },
-        { id: 'LOC002', name: 'Downtown Office', address: '88 Main St, Suite 4', type: 'Office', admin: 'Carlos R.' },
-        { id: 'LOC003', name: 'South Field Site', address: 'Route 12, Mile 8', type: 'Field Site', admin: 'James T.' },
-      ],
-      workers: [
-        { id: 'W001', fname: 'Alex', lname: 'Johnson', eid: 'EMP-101', location: 'LOC001', role: 'Technician', phone: '+1 555 0101' },
-        { id: 'W002', fname: 'Maria', lname: 'Garcia', eid: 'EMP-102', location: 'LOC002', role: 'Supervisor', phone: '+1 555 0102' },
-        { id: 'W003', fname: 'David', lname: 'Kim', eid: 'EMP-103', location: 'LOC001', role: 'Operator', phone: '+1 555 0103' },
-        { id: 'W004', fname: 'Sarah', lname: 'Williams', eid: 'EMP-104', location: 'LOC003', role: 'Field Tech', phone: '+1 555 0104' },
-      ],
-      items: [
-        { id: 'ITM001', name: 'Laptop Dell XPS 15', barcode: 'TRK-0001', category: 'Electronics', location: 'LOC001', brand: 'Dell', serial: 'SN123456', condition: 'Good', status: 'Assigned', assignedTo: 'W001', notes: 'Main work laptop', created: '2026-01-15', isBulk: false, quantity: 1 },
-        { id: 'ITM002', name: 'Safety Helmet', barcode: 'TRK-0002', category: 'Equipment', location: 'LOC001', brand: '3M', serial: '', condition: 'Good', status: 'Assigned', assignedTo: 'W003', notes: '', created: '2026-01-16', isBulk: false, quantity: 1 },
-        { id: 'ITM003', name: 'Drill Kit Bosch', barcode: 'TRK-0003', category: 'Tools', location: 'LOC003', brand: 'Bosch', serial: 'BK987', condition: 'Fair', status: 'Assigned', assignedTo: 'W004', notes: 'Missing bit #3', created: '2026-01-18', isBulk: false, quantity: 1 },
-        { id: 'ITM004', name: 'Hi-Vis Vest (L)', barcode: 'TRK-0004', category: 'Uniform', location: 'LOC002', brand: '', serial: '', condition: 'New', status: 'Available', assignedTo: null, notes: '', created: '2026-01-20', isBulk: false, quantity: 1 },
-        { id: 'ITM005', name: 'Radio Motorola XT', barcode: 'TRK-0005', category: 'Electronics', location: 'LOC001', brand: 'Motorola', serial: 'MOT5541', condition: 'Good', status: 'Available', assignedTo: null, notes: '', created: '2026-01-22', isBulk: false, quantity: 1 },
-        { id: 'ITM006', name: 'Measuring Tape 10m', barcode: 'TRK-0006', category: 'Tools', location: 'LOC003', brand: 'Stanley', serial: '', condition: 'Good', status: 'Available', assignedTo: null, notes: '', created: '2026-02-01', isBulk: false, quantity: 1 },
-      ],
-      history: [
-        { action: 'ITM001 assigned to Alex Johnson', time: '2026-01-15 09:32', type: 'assign' },
-        { action: 'ITM002 assigned to David Kim', time: '2026-01-16 11:05', type: 'assign' },
-        { action: 'ITM003 assigned to Sarah Williams', time: '2026-01-18 14:22', type: 'assign' },
-        { action: 'ITM004 added to Downtown Office', time: '2026-01-20 08:10', type: 'add' },
-        { action: 'ITM005 added to Warehouse North', time: '2026-01-22 10:45', type: 'add' },
-      ],
-      nextBarcode: 7,
-      nextItemId: 7,
-      nextWorkerId: 5,
+      locations: [],
+      workers: [],
+      items: [],
+      history: [],
+      nextBarcode: 1,
+      nextItemId: 1,
+      nextWorkerId: 1,
       nextEventId: 1,
       events: [],
     };
