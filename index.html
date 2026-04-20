@@ -1949,10 +1949,15 @@
     async function syncFromSheets() {
       showSyncBanner('Syncing with Google Sheets...');
       try {
+        const delay = () => new Promise(r => setTimeout(r, 600));
         const locs = await sheetsGet('Locations');
+        await delay();
         const workers = await sheetsGet('Workers');
+        await delay();
         const items = await sheetsGet('Items');
+        await delay();
         const history = await sheetsGet('History');
+        await delay();
         const events = await sheetsGet('Events');
 
         if (locs.length) data.locations = locs.map(r => ({
