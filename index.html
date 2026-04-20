@@ -1877,7 +1877,7 @@
         if (typeof google !== 'undefined' && google.script && google.script.run) {
           google.script.run
             .withSuccessHandler(res => resolve(res.rows || []))
-            .withFailureHandler(err => { console.error(err); resolve([]); })
+            .withFailureHandler(err => { console.error('google.script.run Error:', err); reject(err); })
             .readSheet(sheet);
           return;
         }
@@ -1886,9 +1886,14 @@
         window[cbName] = (json) => {
           delete window[cbName];
           document.body.removeChild(script);
+          if (json && json.error) return reject(new Error(json.error));
           resolve(json.rows || []);
         };
-        script.onerror = () => { delete window[cbName]; document.body.removeChild(script); resolve([]); };
+        script.onerror = () => { 
+          delete window[cbName]; 
+          document.body.removeChild(script); 
+          reject(new Error('Network error or CORS blocked the request to ' + sheet)); 
+        };
         script.src = `${API_URL}?action=read&sheet=${encodeURIComponent(sheet)}&callback=${cbName}`;
         document.body.appendChild(script);
       });
@@ -1998,7 +2003,8 @@
         toast('Synced with Google Sheets ✓', 'success');
       } catch (e) {
         hideSyncBanner();
-        toast('Could not sync — using local data', 'error');
+        console.error('Sync Error:', e);
+        toast('Could not sync: ' + e.message, 'error');
       }
     }
 
