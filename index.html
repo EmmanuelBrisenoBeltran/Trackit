@@ -1839,8 +1839,9 @@
       <div id="od-details"></div>
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary btn-sm" id="od-assign-btn" onclick="assignFromDetail()">Assign to Worker</button>
-        <button class="btn btn-ghost btn-sm" onclick="printDetailBarcode()">Print Label</button>
-        <button class="btn btn-danger btn-sm" onclick="unassignItem()">Unassign</button>
+        <button class="btn btn-ghost btn-sm" onclick="printDetailBarcode()" id="od-print-btn">Print Label</button>
+        <button class="btn btn-danger btn-sm" onclick="unassignItem()" id="od-unassign-btn">Unassign</button>
+        <button class="btn btn-danger btn-sm" id="od-delete-btn" style="background:var(--red);display:none;">Delete</button>
       </div>
       <div style="margin-top:24px;">
         <div class="section-title">Item History</div>
@@ -2369,12 +2370,17 @@
 
       // Hide unnecessary buttons for the location context
       document.getElementById('od-assign-btn').style.display = 'none';
-      const unassignBtn = document.querySelector('[onclick="unassignItem()"]');
+      const unassignBtn = document.getElementById('od-unassign-btn');
       if (unassignBtn) unassignBtn.style.display = 'none';
-      const printBtn = document.querySelector('[onclick="printDetailBarcode()"]');
+      const printBtn = document.getElementById('od-print-btn');
       if (printBtn) printBtn.style.display = 'none';
       const closeEvBtn = document.getElementById('close-event-btn');
       if (closeEvBtn) closeEvBtn.style.display = 'none';
+      const deleteBtn = document.getElementById('od-delete-btn');
+      if (deleteBtn) {
+        deleteBtn.style.display = '';
+        deleteBtn.onclick = () => deleteLocation(locId);
+      }
 
       document.getElementById('od-history').innerHTML = ''; // Locations have no temporal history feature yet
       document.getElementById('item-detail').classList.add('open');
@@ -2774,6 +2780,11 @@
         : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No history for this item</div>';
 
       document.getElementById('od-assign-btn').textContent = worker ? 'Reassign' : 'Assign to Worker';
+      document.getElementById('od-assign-btn').style.display = '';
+      document.getElementById('od-print-btn').style.display = '';
+      document.getElementById('od-unassign-btn').style.display = '';
+      document.getElementById('od-delete-btn').style.display = '';
+      document.getElementById('od-delete-btn').onclick = () => deleteItem(itemId);
       document.getElementById('item-detail').classList.add('open');
     }
 
@@ -2805,8 +2816,10 @@
 
       const btns = document.querySelector('.overlay-body > div[style*="margin-top:20px"]');
       document.getElementById('od-assign-btn').style.display = 'none';
-      document.querySelector('[onclick="unassignItem()"]').style.display = 'none';
-      document.querySelector('[onclick="printDetailBarcode()"]').style.display = 'none';
+      document.getElementById('od-unassign-btn').style.display = 'none';
+      document.getElementById('od-print-btn').style.display = 'none';
+      document.getElementById('od-delete-btn').style.display = '';
+      document.getElementById('od-delete-btn').onclick = () => deleteWorker(workerId);
       document.getElementById('item-detail').classList.add('open');
     }
 
@@ -2814,8 +2827,9 @@
       document.getElementById('item-detail').classList.remove('open');
       detailItemId = null;
       document.getElementById('od-assign-btn').style.display = '';
-      document.querySelector('[onclick="unassignItem()"]').style.display = '';
-      document.querySelector('[onclick="printDetailBarcode()"]').style.display = '';
+      document.getElementById('od-unassign-btn').style.display = '';
+      document.getElementById('od-print-btn').style.display = '';
+      document.getElementById('od-delete-btn').style.display = 'none';
     }
 
     // ─── BARCODE ─────────────────────────────────────────────────
@@ -3519,6 +3533,68 @@
       closeModal('event-modal');
       renderAll();
       updateNavBadges();
+    }
+
+    async function deleteItem(itemId) {
+      if (!confirm('¿Estás seguro de que quieres eliminar este ítem permanentemente?')) return;
+      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
+      if (confirmText !== 'ELIMINAR') return;
+      
+      const item = data.items.find(i => i.id === itemId);
+      if (!item) return;
+
+      data.items = data.items.filter(i => i.id !== itemId);
+      await sheetsPost('delete', 'Items', { ID: itemId });
+      const msg = `Ítem "${item.name}" ELIMINADO`;
+      addHistory(msg, 'delete');
+      saveHistoryToSheets(msg, 'delete');
+      toast('Ítem eliminado permanentemente ✓', 'success');
+      closeOverlay();
+      renderAll();
+    }
+
+    async function deleteWorker(workerId) {
+      if (!confirm('¿Estás seguro de que quieres eliminar este empleado / worker?')) return;
+      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
+      if (confirmText !== 'ELIMINAR') return;
+      
+      const worker = data.workers.find(w => w.id === workerId);
+      if (!worker) return;
+
+      // Liberar todos los ítems asignados a este empleado
+      const assigned = data.items.filter(i => i.assignedTo === workerId);
+      for (const item of assigned) {
+        item.assignedTo = null;
+        item.status = 'Available';
+        await updateItemInSheets(item);
+      }
+
+      data.workers = data.workers.filter(w => w.id !== workerId);
+      await sheetsPost('delete', 'Workers', { ID: workerId });
+      const msg = `Empleado "${worker.fname} ${worker.lname}" ELIMINADO`;
+      addHistory(msg, 'delete');
+      saveHistoryToSheets(msg, 'delete');
+      toast('Empleado eliminado permanentemente ✓', 'success');
+      closeOverlay();
+      renderAll();
+    }
+
+    async function deleteLocation(locId) {
+      if (!confirm('¿Estás seguro de que quieres eliminar este location / lugar?')) return;
+      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
+      if (confirmText !== 'ELIMINAR') return;
+      
+      const loc = data.locations.find(l => l.id === locId);
+      if (!loc) return;
+
+      data.locations = data.locations.filter(l => l.id !== locId);
+      await sheetsPost('delete', 'Locations', { ID: locId });
+      const msg = `Location "${loc.name}" ELIMINADO`;
+      addHistory(msg, 'delete');
+      saveHistoryToSheets(msg, 'delete');
+      toast('Location eliminado permanentemente ✓', 'success');
+      closeOverlay();
+      renderAll();
     }
 
     function openEventDetail(eventId) {
