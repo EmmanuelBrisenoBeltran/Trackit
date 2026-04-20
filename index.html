@@ -1873,23 +1873,29 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbyu8R8TdehteKBNuBNN-751w6jhUctKGrany9GfCG2EbNzLlyu-d1ZimX4TIo70rtE/exec';
 
     function sheetsGet(sheet) {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout fetching ' + sheet));
+        }, 15000);
+
         if (typeof google !== 'undefined' && google.script && google.script.run) {
           google.script.run
-            .withSuccessHandler(res => resolve(res.rows || []))
-            .withFailureHandler(err => { console.error('google.script.run Error:', err); reject(err); })
+            .withSuccessHandler(res => { clearTimeout(timeout); resolve(res.rows || []); })
+            .withFailureHandler(err => { clearTimeout(timeout); console.error('google.script.run Error:', err); reject(err); })
             .readSheet(sheet);
           return;
         }
         const cbName = 'cb_' + sheet + '_' + Date.now() + '_' + Math.floor(Math.random()*100000);
         const script = document.createElement('script');
         window[cbName] = (json) => {
+          clearTimeout(timeout);
           delete window[cbName];
           document.body.removeChild(script);
           if (json && json.error) return reject(new Error(json.error));
           resolve(json.rows || []);
         };
         script.onerror = () => { 
+          clearTimeout(timeout);
           delete window[cbName]; 
           document.body.removeChild(script); 
           reject(new Error('Network error or CORS blocked the request to ' + sheet)); 
