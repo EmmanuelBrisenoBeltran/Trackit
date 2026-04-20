@@ -1873,7 +1873,7 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbyu8R8TdehteKBNuBNN-751w6jhUctKGrany9GfCG2EbNzLlyu-d1ZimX4TIo70rtE/exec';
 
     function sheetsGet(sheet) {
-      return new Promise((resolve, reject) => {
+      return new Promise(async (resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error('Timeout fetching ' + sheet));
         }, 15000);
@@ -1885,28 +1885,22 @@
             .readSheet(sheet);
           return;
         }
-        const cbName = 'cb_' + sheet + '_' + Date.now() + '_' + Math.floor(Math.random()*100000);
-        const script = document.createElement('script');
-        window[cbName] = (json) => {
+
+        try {
+          const res = await fetch(`${API_URL}?action=read&sheet=${encodeURIComponent(sheet)}`, { method: 'GET', credentials: 'omit' });
+          const json = await res.json();
           clearTimeout(timeout);
-          delete window[cbName];
-          document.body.removeChild(script);
           if (json && json.error) return reject(new Error(json.error));
           resolve(json.rows || []);
-        };
-        script.onerror = () => { 
+        } catch (err) {
           clearTimeout(timeout);
-          delete window[cbName]; 
-          document.body.removeChild(script); 
-          reject(new Error('Network error or CORS blocked the request to ' + sheet)); 
-        };
-        script.src = `${API_URL}?action=read&sheet=${encodeURIComponent(sheet)}&callback=${cbName}`;
-        document.body.appendChild(script);
+          reject(new Error('Network or Fetch error fetching ' + sheet + ': ' + err.message));
+        }
       });
     }
 
     function sheetsPost(action, sheet, dataObj) {
-      return new Promise((resolve) => {
+      return new Promise(async (resolve) => {
         if (typeof google !== 'undefined' && google.script && google.script.run) {
           google.script.run
             .withSuccessHandler(res => {
@@ -1922,25 +1916,13 @@
         }
 
         try {
-          const cbName = 'cbp_' + Date.now() + '_' + Math.floor(Math.random()*100000);
-          const script = document.createElement('script');
-          window[cbName] = (json) => {
-            delete window[cbName];
-            if(document.body.contains(script)) document.body.removeChild(script);
-            if (json && json.error) toast('Google Sheet Error: ' + json.error, 'error');
-            resolve(json);
-          };
-          script.onerror = () => { 
-            delete window[cbName]; 
-            if(document.body.contains(script)) document.body.removeChild(script); 
-            toast('Network Error: Could not save to ' + sheet, 'error');
-            resolve({ error: 'fetch failed' }); 
-          };
           const encoded = encodeURIComponent(JSON.stringify({ action, sheet, data: dataObj }));
-          script.src = `${API_URL}?jsonBody=${encoded}&callback=${cbName}`;
-          document.body.appendChild(script);
+          const res = await fetch(`${API_URL}?jsonBody=${encoded}`, { method: 'GET', credentials: 'omit' });
+          const json = await res.json();
+          if (json && json.error) toast('Google Sheet Error: ' + json.error, 'error');
+          resolve(json);
         } catch(e) {
-          toast('JS Error: ' + e.message, 'error');
+          toast('Network Error: Could not save to ' + sheet, 'error');
           resolve({ error: e.message });
         }
       });
