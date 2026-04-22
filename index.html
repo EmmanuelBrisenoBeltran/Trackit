@@ -1976,15 +1976,15 @@
           managers: r.Managers ? r.Managers.split(',').filter(Boolean) : [],
           created: r.Created
         }));
-        const allEventNums = data.events.map(e => parseInt(e.id.replace('EVT', ''))).filter(n => !isNaN(n));
+        const allEventNums = data.events.map(e => parseInt((e.id || '').replace('EVT', ''))).filter(n => !isNaN(n));
         if (allEventNums.length) data.nextEventId = Math.max(...allEventNums) + 1;
 
         // Update counters
-        const allBarcodes = data.items.map(i => parseInt(i.barcode.replace('TRK-', ''))).filter(n => !isNaN(n));
+        const allBarcodes = data.items.map(i => parseInt((i.barcode || '').replace('TRK-', ''))).filter(n => !isNaN(n));
         if (allBarcodes.length) data.nextBarcode = Math.max(...allBarcodes) + 1;
-        const allItemNums = data.items.map(i => parseInt(i.id.replace('ITM', ''))).filter(n => !isNaN(n));
+        const allItemNums = data.items.map(i => parseInt((i.id || '').replace('ITM', ''))).filter(n => !isNaN(n));
         if (allItemNums.length) data.nextItemId = Math.max(...allItemNums) + 1;
-        const allWorkerNums = data.workers.map(w => parseInt(w.id.replace('W', ''))).filter(n => !isNaN(n));
+        const allWorkerNums = data.workers.map(w => parseInt((w.id || '').replace('W', ''))).filter(n => !isNaN(n));
         if (allWorkerNums.length) data.nextWorkerId = Math.max(...allWorkerNums) + 1;
 
         renderAll();
