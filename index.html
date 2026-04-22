@@ -88,10 +88,11 @@
       color: var(--accent);
       flex-shrink: 0;
     }
+
     .logo-mark svg {
       width: 100%;
       height: 100%;
-      filter: drop-shadow(0 0 6px rgba(212,255,0,0.3));
+      filter: drop-shadow(0 0 6px rgba(212, 255, 0, 0.3));
     }
 
     .logo-text {
@@ -1100,7 +1101,8 @@
     <aside class="sidebar" id="sidebar">
       <div class="logo">
         <div class="logo-mark">
-          <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="butt" stroke-linejoin="miter">
+          <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="butt"
+            stroke-linejoin="miter">
             <path d="M 75,24 A 36,36 0 1,0 75,76" />
             <path d="M 26,24 L 75,24" />
             <path d="M 26,24 L 26,76" />
@@ -1724,7 +1726,8 @@
         </div>
       </div>
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
-        <button class="btn btn-danger btn-sm" onclick="deleteEvent()" id="event-delete-btn" style="display:none;background:var(--red);">Delete Event</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEvent()" id="event-delete-btn"
+          style="display:none;">Delete Event</button>
         <div style="display:flex; gap:8px;">
           <button class="btn btn-ghost" onclick="closeModal('event-modal')">Cancel</button>
           <button class="btn btn-primary" onclick="saveEvent()" id="event-save-btn">Create Event</button>
@@ -1836,16 +1839,17 @@
       <div id="od-details"></div>
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary btn-sm" id="od-assign-btn" onclick="assignFromDetail()">Assign to Worker</button>
-        <button class="btn btn-ghost btn-sm" onclick="printDetailBarcode()">Print Label</button>
-        <button class="btn btn-danger btn-sm" onclick="unassignItem()">Unassign</button>
+        <button class="btn btn-ghost btn-sm" onclick="printDetailBarcode()" id="od-print-btn">Print Label</button>
+        <button class="btn btn-danger btn-sm" onclick="unassignItem()" id="od-unassign-btn">Unassign</button>
+        <button class="btn btn-danger btn-sm" id="od-delete-btn" style="display:none;">Delete</button>
       </div>
       <div style="margin-top:24px;">
         <div class="section-title">Item History</div>
         <div id="od-history"></div>
       </div>
     </div>
-      </div>
-    </div>
+  </div>
+  </div>
   </div>
 
   <!-- LOCATION CONTEXT MODAL -->
@@ -1920,6 +1924,7 @@
             toast('Network Error: Could not save to ' + sheet, 'error');
             resolve({ error: err.message });
           });
+        return;
       });
     }
 
@@ -2340,12 +2345,17 @@
 
       // Hide unnecessary buttons for the location context
       document.getElementById('od-assign-btn').style.display = 'none';
-      const unassignBtn = document.querySelector('[onclick="unassignItem()"]');
-      if(unassignBtn) unassignBtn.style.display = 'none';
-      const printBtn = document.querySelector('[onclick="printDetailBarcode()"]');
-      if(printBtn) printBtn.style.display = 'none';
+      const unassignBtn = document.getElementById('od-unassign-btn');
+      if (unassignBtn) unassignBtn.style.display = 'none';
+      const printBtn = document.getElementById('od-print-btn');
+      if (printBtn) printBtn.style.display = 'none';
       const closeEvBtn = document.getElementById('close-event-btn');
-      if(closeEvBtn) closeEvBtn.style.display = 'none';
+      if (closeEvBtn) closeEvBtn.style.display = 'none';
+      const deleteBtn = document.getElementById('od-delete-btn');
+      if (deleteBtn) {
+        deleteBtn.style.display = '';
+        deleteBtn.onclick = () => deleteLocation(locId);
+      }
 
       document.getElementById('od-history').innerHTML = ''; // Locations have no temporal history feature yet
       document.getElementById('item-detail').classList.add('open');
@@ -2511,12 +2521,12 @@
       newWorker.barcode = 'WRK-' + newWorker.id;
       data.workers.push(newWorker);
       addHistory(`Worker ${fname} ${lname} registered`, 'add');
-      await saveWorkerToSheets(data.workers[data.workers.length - 1]);
-      await saveHistoryToSheets(`Worker ${fname} ${lname} registered`, 'add');
-      toast('Worker saved to Google Sheets ✓', 'success');
       closeModal('worker-modal');
       renderAll();
       updateNavBadges();
+      await saveWorkerToSheets(newWorker);
+      await saveHistoryToSheets(`Worker ${fname} ${lname} registered`, 'add');
+      toast('Worker saved to Google Sheets ✓', 'success');
     }
 
     // ─── LOCATION MODAL ───────────────────────────────────────────
@@ -2745,6 +2755,11 @@
         : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No history for this item</div>';
 
       document.getElementById('od-assign-btn').textContent = worker ? 'Reassign' : 'Assign to Worker';
+      document.getElementById('od-assign-btn').style.display = '';
+      document.getElementById('od-print-btn').style.display = '';
+      document.getElementById('od-unassign-btn').style.display = '';
+      document.getElementById('od-delete-btn').style.display = '';
+      document.getElementById('od-delete-btn').onclick = () => deleteItem(itemId);
       document.getElementById('item-detail').classList.add('open');
     }
 
@@ -2776,8 +2791,10 @@
 
       const btns = document.querySelector('.overlay-body > div[style*="margin-top:20px"]');
       document.getElementById('od-assign-btn').style.display = 'none';
-      document.querySelector('[onclick="unassignItem()"]').style.display = 'none';
-      document.querySelector('[onclick="printDetailBarcode()"]').style.display = 'none';
+      document.getElementById('od-unassign-btn').style.display = 'none';
+      document.getElementById('od-print-btn').style.display = 'none';
+      document.getElementById('od-delete-btn').style.display = '';
+      document.getElementById('od-delete-btn').onclick = () => deleteWorker(workerId);
       document.getElementById('item-detail').classList.add('open');
     }
 
@@ -2785,8 +2802,9 @@
       document.getElementById('item-detail').classList.remove('open');
       detailItemId = null;
       document.getElementById('od-assign-btn').style.display = '';
-      document.querySelector('[onclick="unassignItem()"]').style.display = '';
-      document.querySelector('[onclick="printDetailBarcode()"]').style.display = '';
+      document.getElementById('od-unassign-btn').style.display = '';
+      document.getElementById('od-print-btn').style.display = '';
+      document.getElementById('od-delete-btn').style.display = 'none';
     }
 
     // ─── BARCODE ─────────────────────────────────────────────────
@@ -2812,7 +2830,7 @@
     }
 
     function printLabel(code, name) {
-      const win = window.open('', '_blank', 'width=800,height=600');
+      const win = window.open('', '_blank', 'width=1000,height=800');
       win.document.write(`<!DOCTYPE html><html><head><title>Label</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
     <style>
@@ -3262,6 +3280,7 @@
           <div class="detail-row"><span class="detail-key">Location</span><span class="detail-val">${loc ? loc.name : '—'}</span></div>
           <div style="margin-top:14px;display:flex;gap:8px;">
             <button class="btn btn-primary btn-sm" onclick="openWorkerDetail('${worker.id}')">View Profile</button>
+            <button class="btn btn-ghost btn-sm" onclick="printWorkerBadge(data.workers.find(w => w.id === '${worker.id}'), '${worker.barcode || ('WRK-' + worker.id)}')">Print Badge</button>
           </div>
         </div>`;
           toast('Worker found: ' + worker.fname, 'success');
@@ -3278,12 +3297,12 @@
       const w = data.workers.find(x => x.id === workerId);
       if (!w) return;
       const code = w.barcode || ('WRK-' + w.id);
-      const win = window.open('', '_blank', 'width=400,height=320');
+      const win = window.open('', '_blank', 'width=1000,height=800');
       win.document.write(`<!DOCTYPE html><html><head><title>Worker Badge</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
     <style>
-      @page { size: 60mm 30mm; margin: 0; padding: 0; }
-      html, body { margin: 0; padding: 0; width: 60mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
+      @page { size: 50mm 30mm; margin: 0; padding: 0; }
+      html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
       .badge { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1mm; text-align: center; border: none; outline: none; }
       h2 { font-size: 12px; margin: 0 0 1px 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 48mm; font-weight: bold; line-height: 1.2; text-overflow: ellipsis; }
       .role { font-size: 10px; color: #333; margin: 0 0 2px 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 48mm; text-overflow: ellipsis; line-height: 1.1; }
@@ -3323,9 +3342,9 @@
           return true; // Show all past events, including Closed
         } else if (filter === 'recent') {
           if (e.status === 'Closed' && e.start) {
-             const evDate = new Date(e.start);
-             const daysOld = (now - evDate) / (1000 * 60 * 60 * 24);
-             return daysOld <= 30;
+            const evDate = new Date(e.start);
+            const daysOld = (now - evDate) / (1000 * 60 * 60 * 24);
+            return daysOld <= 30;
           }
           return true; // Show Upcoming, Active
         } else {
@@ -3465,10 +3484,10 @@
         toast('Borrado cancelado', 'info');
         return;
       }
-      
+
       const ev = data.events.find(e => e.id === editingEventId);
       if (!ev) return;
-      
+
       // Return any hooked items safely
       const assignedItems = data.items.filter(i => i.eventId === editingEventId);
       assignedItems.forEach(item => {
@@ -3477,18 +3496,80 @@
         item.status = 'Available';
         updateItemInSheets(item);
       });
-      
+
       ev.status = 'Deleted';
       updateEventInSheets(ev);
-      
+
       const msg = `Event "${ev.name}" DELETED per user correct`;
       addHistory(msg, 'delete');
       saveHistoryToSheets(msg, 'delete');
-      
+
       toast('Evento eliminado permanentemente ✓', 'success');
       closeModal('event-modal');
       renderAll();
       updateNavBadges();
+    }
+
+    async function deleteItem(itemId) {
+      if (!confirm('¿Estás seguro de que quieres eliminar este ítem permanentemente?')) return;
+      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
+      if (confirmText !== 'ELIMINAR') return;
+      
+      const item = data.items.find(i => i.id === itemId);
+      if (!item) return;
+
+      data.items = data.items.filter(i => i.id !== itemId);
+      await sheetsPost('delete', 'Items', { ID: itemId });
+      const msg = `Ítem "${item.name}" ELIMINADO`;
+      addHistory(msg, 'delete');
+      saveHistoryToSheets(msg, 'delete');
+      toast('Ítem eliminado permanentemente ✓', 'success');
+      closeOverlay();
+      renderAll();
+    }
+
+    async function deleteWorker(workerId) {
+      if (!confirm('¿Estás seguro de que quieres eliminar este empleado / worker?')) return;
+      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
+      if (confirmText !== 'ELIMINAR') return;
+      
+      const worker = data.workers.find(w => w.id === workerId);
+      if (!worker) return;
+
+      // Liberar todos los ítems asignados a este empleado
+      const assigned = data.items.filter(i => i.assignedTo === workerId);
+      for (const item of assigned) {
+        item.assignedTo = null;
+        item.status = 'Available';
+        await updateItemInSheets(item);
+      }
+
+      data.workers = data.workers.filter(w => w.id !== workerId);
+      await sheetsPost('delete', 'Workers', { ID: workerId });
+      const msg = `Empleado "${worker.fname} ${worker.lname}" ELIMINADO`;
+      addHistory(msg, 'delete');
+      saveHistoryToSheets(msg, 'delete');
+      toast('Empleado eliminado permanentemente ✓', 'success');
+      closeOverlay();
+      renderAll();
+    }
+
+    async function deleteLocation(locId) {
+      if (!confirm('¿Estás seguro de que quieres eliminar este location / lugar?')) return;
+      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
+      if (confirmText !== 'ELIMINAR') return;
+      
+      const loc = data.locations.find(l => l.id === locId);
+      if (!loc) return;
+
+      data.locations = data.locations.filter(l => l.id !== locId);
+      await sheetsPost('delete', 'Locations', { ID: locId });
+      const msg = `Location "${loc.name}" ELIMINADO`;
+      addHistory(msg, 'delete');
+      saveHistoryToSheets(msg, 'delete');
+      toast('Location eliminado permanentemente ✓', 'success');
+      closeOverlay();
+      renderAll();
     }
 
     function openEventDetail(eventId) {
@@ -3698,7 +3779,7 @@
     function closeEvent(eventId) {
       const ev = data.events.find(e => e.id === eventId);
       if (!ev) return;
-      
+
       const assignedItems = data.items.filter(i => i.eventId === eventId);
       const pendingItems = assignedItems.filter(i => i.assignedTo !== null || i.status === 'Assigned');
 
@@ -3732,14 +3813,14 @@
 
     function openModal(id) { document.getElementById(id).classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-    
+
     function openLocationModal() {
       const list = document.getElementById('location-context-list');
       const allChecked = !globalLocationFilter ? 'checked' : '';
       let html = `
         <div class="assign-item" style="cursor:pointer;" onclick="setGlobalLocation(null)">
           <div style="flex:1;">
-            <div style="font-size:14px;font-weight:${!globalLocationFilter?'bold':'normal'};">🌍 All Locations</div>
+            <div style="font-size:14px;font-weight:${!globalLocationFilter ? 'bold' : 'normal'};">🌍 All Locations</div>
           </div>
           ${!globalLocationFilter ? '<span style="color:var(--blue);">✓</span>' : ''}
         </div>
@@ -3749,7 +3830,7 @@
         html += `
           <div class="assign-item" style="cursor:pointer;" onclick="setGlobalLocation('${loc.id}')">
             <div style="flex:1;">
-              <div style="font-size:14px;font-weight:${isSel?'bold':'normal'};">${loc.name}</div>
+              <div style="font-size:14px;font-weight:${isSel ? 'bold' : 'normal'};">${loc.name}</div>
               <div style="font-size:11px;color:var(--text3);">${loc.address || ''}</div>
             </div>
             ${isSel ? '<span style="color:var(--blue);">✓</span>' : ''}
