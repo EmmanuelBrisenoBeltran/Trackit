@@ -1702,7 +1702,9 @@
           </div>
           <div class="form-group">
             <label class="form-label">Venue / Location</label>
-            <input class="form-input" id="ef-location" placeholder="e.g. Convention Center Hall A">
+            <select class="form-select" id="ef-location">
+              <option value="">Select a location…</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Status</label>
@@ -1869,15 +1871,15 @@
   <div class="modal-backdrop" id="confirm-delete-modal" style="display:none;">
     <div class="modal" style="max-width:380px;">
       <div class="modal-header">
-        <span class="modal-title" style="color:var(--red);">Confirmar eliminación</span>
+        <span class="modal-title" style="color:var(--red);">Confirm deletion</span>
       </div>
       <div class="modal-body">
         <p id="confirm-delete-msg" style="font-size:14px;line-height:1.5;margin-bottom:8px;"></p>
-        <p style="font-size:12px;color:var(--text3);">Esta acción no se puede deshacer.</p>
+        <p style="font-size:12px;color:var(--text3);">This action cannot be undone.</p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="cancelDelete()">Cancelar</button>
-        <button class="btn btn-danger" style="background:var(--red);color:#fff;" onclick="confirmDeleteAction()">Eliminar</button>
+        <button class="btn btn-ghost" onclick="cancelDelete()">Cancel</button>
+        <button class="btn btn-danger" style="background:var(--red);color:#fff;" onclick="confirmDeleteAction()">Delete</button>
       </div>
     </div>
   </div>
@@ -2319,7 +2321,6 @@
         <div class="loc-stat"><div class="loc-stat-val">${assigned}</div><div class="loc-stat-lab">Assigned</div></div>
         <div class="loc-stat"><div class="loc-stat-val">${workers.length}</div><div class="loc-stat-lab">Workers</div></div>
       </div>
-      <button class="btn btn-danger btn-sm" style="margin-top:12px;width:100%;background:var(--red);color:#fff;" onclick="event.stopPropagation();deleteLocation('${loc.id}')">Delete Location</button>
     </div>`;
       }).join('');
     }
@@ -2328,15 +2329,25 @@
       const loc = data.locations.find(l => l.id === locId);
       if (!loc) return;
 
+      const icons = { Warehouse: '🏭', Office: '🏢', Store: '🏪', 'Field Site': '🏗️', Other: '📍' };
       const workers = data.workers.filter(w => w.location === locId);
       const availableItems = data.items.filter(i => i.location === locId && i.status === 'Available');
+      const totalItems = data.items.filter(i => i.location === locId).length;
+      const assignedItems = data.items.filter(i => i.location === locId && i.status === 'Assigned').length;
 
       document.getElementById('od-name').textContent = loc.name;
       document.getElementById('od-code').textContent = loc.id;
       document.getElementById('od-barcode').innerHTML = `
+        <div style="font-size:32px;text-align:center;margin-bottom:6px;">${icons[loc.type] || '📍'}</div>
         <div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:8px;">${loc.address || '—'}</div>
-        <div style="display:flex;justify-content:center;gap:8px;">
+        <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;">
+          <span class="badge badge-gray">${loc.type || 'Other'}</span>
           <span class="badge badge-gray">Admin: ${loc.admin || '—'}</span>
+        </div>
+        <div class="location-stats" style="margin-top:14px;">
+          <div class="loc-stat"><div class="loc-stat-val">${totalItems}</div><div class="loc-stat-lab">Items</div></div>
+          <div class="loc-stat"><div class="loc-stat-val">${assignedItems}</div><div class="loc-stat-lab">Assigned</div></div>
+          <div class="loc-stat"><div class="loc-stat-val">${workers.length}</div><div class="loc-stat-lab">Workers</div></div>
         </div>
       `;
 
@@ -3398,7 +3409,7 @@
       </div>
       <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">
         ${ev.start || '—'}
-        ${ev.location ? `<div style="margin-top:2px;">📍 ${ev.location}</div>` : ''}
+        ${ev.location ? `<div style="margin-top:2px;">📍 ${(data.locations.find(l => l.id === ev.location)?.name) || ev.location}</div>` : ''}
       </div>
       <div class="location-stats">
         <div class="loc-stat">
@@ -3428,6 +3439,10 @@
       document.getElementById('event-save-btn').textContent = eventId ? 'Save Changes' : 'Create Event';
       document.getElementById('event-delete-btn').style.display = eventId ? '' : 'none';
 
+      const locSel = document.getElementById('ef-location');
+      locSel.innerHTML = '<option value="">Select a location…</option>' +
+        data.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+
       if (eventId) {
         const ev = data.events.find(e => e.id === eventId);
         if (ev) {
@@ -3438,7 +3453,8 @@
           document.getElementById('ef-notes').value = ev.notes || '';
         }
       } else {
-        ['ef-name', 'ef-location', 'ef-notes'].forEach(id => document.getElementById(id).value = '');
+        ['ef-name', 'ef-notes'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('ef-location').value = '';
         document.getElementById('ef-start').value = new Date().toISOString().split('T')[0];
         document.getElementById('ef-status').value = 'Upcoming';
       }
@@ -3502,10 +3518,10 @@
 
     function deleteEvent() {
       if (!editingEventId) return;
-      if (!confirm('¿Estás seguro de que quieres eliminar este evento creado por error?')) return;
-      const confirmText = prompt('¡ATENCIÓN! Al hacer esto se perderá toda la historia y trazabilidad vinculada a este evento. Escribe "ELIMINAR" en mayúsculas para confirmar:');
-      if (confirmText !== 'ELIMINAR') {
-        toast('Borrado cancelado', 'info');
+      if (!confirm('Are you sure you want to delete this event created by mistake?')) return;
+      const confirmText = prompt('WARNING! Doing this will lose all history and traceability linked to this event. Type "DELETE" in uppercase to confirm:');
+      if (confirmText !== 'DELETE') {
+        toast('Deletion cancelled', 'info');
         return;
       }
 
@@ -3528,7 +3544,7 @@
       addHistory(msg, 'delete');
       saveHistoryToSheets(msg, 'delete');
 
-      toast('Evento eliminado permanentemente ✓', 'success');
+      toast('Event permanently deleted ✓', 'success');
       closeModal('event-modal');
       renderAll();
       updateNavBadges();
@@ -3555,23 +3571,23 @@
     function deleteItem(itemId) {
       const item = data.items.find(i => i.id === itemId);
       if (!item) return;
-      confirmDelete(`¿Eliminar el ítem "${item.name}"?`, async () => {
+      confirmDelete(`Delete item "${item.name}"?`, async () => {
         data.items = data.items.filter(i => i.id !== itemId);
         closeOverlay();
         renderAll();
         updateNavBadges();
         await sheetsPost('delete', 'Items', { ID: itemId });
-        const msg = `Ítem "${item.name}" ELIMINADO`;
+        const msg = `Item "${item.name}" DELETED`;
         addHistory(msg, 'delete');
         await saveHistoryToSheets(msg, 'delete');
-        toast('Ítem eliminado ✓', 'success');
+        toast('Item deleted ✓', 'success');
       });
     }
 
     function deleteWorker(workerId) {
       const worker = data.workers.find(w => w.id === workerId);
       if (!worker) return;
-      confirmDelete(`¿Eliminar a ${worker.fname} ${worker.lname}?`, async () => {
+      confirmDelete(`Delete ${worker.fname} ${worker.lname}?`, async () => {
         const assigned = data.items.filter(i => i.assignedTo === workerId);
         for (const item of assigned) {
           item.assignedTo = null;
@@ -3583,26 +3599,26 @@
         renderAll();
         updateNavBadges();
         await sheetsPost('delete', 'Workers', { ID: workerId });
-        const msg = `Empleado "${worker.fname} ${worker.lname}" ELIMINADO`;
+        const msg = `Worker "${worker.fname} ${worker.lname}" DELETED`;
         addHistory(msg, 'delete');
         await saveHistoryToSheets(msg, 'delete');
-        toast('Empleado eliminado ✓', 'success');
+        toast('Worker deleted ✓', 'success');
       });
     }
 
     function deleteLocation(locId) {
       const loc = data.locations.find(l => l.id === locId);
       if (!loc) return;
-      confirmDelete(`¿Eliminar la ubicación "${loc.name}"?`, async () => {
+      confirmDelete(`Delete location "${loc.name}"?`, async () => {
         data.locations = data.locations.filter(l => l.id !== locId);
         closeOverlay();
         renderAll();
         updateNavBadges();
         await sheetsPost('delete', 'Locations', { ID: locId });
-        const msg = `Ubicación "${loc.name}" ELIMINADA`;
+        const msg = `Location "${loc.name}" DELETED`;
         addHistory(msg, 'delete');
         await saveHistoryToSheets(msg, 'delete');
-        toast('Ubicación eliminada ✓', 'success');
+        toast('Location deleted ✓', 'success');
       });
     }
 
@@ -3623,7 +3639,7 @@
       <span class="badge" style="background:${sc.bg};color:${sc.color};font-size:13px;">${ev.status}</span>
       <span style="font-size:12px;color:var(--text3);">${ev.start}</span>
     </div>
-    ${ev.location ? `<div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:4px;">📍 ${ev.location}</div>` : ''}
+    ${ev.location ? `<div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:4px;">📍 ${(data.locations.find(l => l.id === ev.location)?.name) || ev.location}</div>` : ''}
   `;
 
       document.getElementById('od-details').innerHTML = `
@@ -3717,7 +3733,7 @@
       const ev = data.events.find(e => e.id === eventId);
       if (!ev) return;
       if (!ev.managers || ev.managers.length === 0) {
-        toast('Debes asignar al menos un manager al evento antes de añadir ítems', 'error');
+        toast('You must assign at least one manager to the event before adding items', 'error');
         return;
       }
       document.getElementById('eai-event-name').textContent = ev.name;
@@ -3765,7 +3781,7 @@
 
     function confirmEventItemAssign() {
       const checkboxes = Array.from(document.querySelectorAll('#eai-items-list input[type="checkbox"]:checked'));
-      if (checkboxes.length === 0) { toast('Por favor selecciona al menos un ítem', 'error'); return; }
+      if (checkboxes.length === 0) { toast('Please select at least one item', 'error'); return; }
       const ev = data.events.find(e => e.id === currentEventDetailId);
       if (!ev) return;
 
@@ -3783,10 +3799,10 @@
 
       const MAX_NAMES = 3;
       const namesPreview = addedNames.slice(0, MAX_NAMES).join(', ') + (addedNames.length > MAX_NAMES ? '...' : '');
-      const msg = `${count} ítem(s) assigned to event "${ev.name}": ${namesPreview}`;
+      const msg = `${count} item(s) assigned to event "${ev.name}": ${namesPreview}`;
       addHistory(msg, 'assign');
       saveHistoryToSheets(msg, 'assign');
-      toast(`${count} ítems añadidos al evento ✓`, 'success');
+      toast(`${count} items added to event ✓`, 'success');
       closeModal('event-assign-item-modal');
 
       // Refresh event detail
@@ -3818,7 +3834,7 @@
       const pendingItems = assignedItems.filter(i => i.assignedTo !== null || i.status === 'Assigned');
 
       if (pendingItems.length > 0) {
-        toast('Error: Debes regresar todos los ítems de vuelta al inventario antes de cerrar el evento.', 'error');
+        toast('Error: You must return all items back to inventory before closing the event.', 'error');
         return;
       }
 
@@ -3881,7 +3897,7 @@
       document.getElementById('current-loc-name').textContent = navText || 'All Locations';
       closeModal('location-context-modal');
       renderAll();
-      toast(locId ? 'Filtrado por: ' + navText : 'Mostrando todo');
+      toast(locId ? 'Filtered by: ' + navText : 'Showing all');
     }
 
     function addHistory(action, type) {
