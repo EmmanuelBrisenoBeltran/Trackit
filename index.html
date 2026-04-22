@@ -2239,6 +2239,16 @@
       });
     }
 
+    async function updateWorkerInSheets(worker) {
+      await sheetsPost('update', 'Workers', {
+        ID: worker.id, FirstName: worker.fname, LastName: worker.lname,
+        EmployeeID: worker.eid || '', Location: worker.location,
+        Role: worker.role || '', Phone: worker.phone || '',
+        Barcode: worker.barcode || '',
+        Org: worker.org || 'flex',
+      });
+    }
+
     async function saveLocationToSheets(loc) {
       await sheetsPost('append', 'Locations', {
         ID: loc.id, Name: loc.name, Address: loc.address || '',
@@ -2844,9 +2854,29 @@
     }
 
     // ─── WORKER MODAL ─────────────────────────────────────────────
-    function openWorkerModal() {
-      ['wf-fname', 'wf-lname', 'wf-eid', 'wf-role', 'wf-phone'].forEach(id => document.getElementById(id).value = '');
+    let editingWorkerId = null;
+    function openWorkerModal(workerId = null) {
+      editingWorkerId = workerId;
       populateLocationSelects();
+      const title = document.getElementById('worker-modal-title');
+      const saveBtn = document.getElementById('worker-save-btn');
+      if (workerId) {
+        const w = data.workers.find(x => x.id === workerId);
+        if (!w) { editingWorkerId = null; return; }
+        title.textContent = 'Edit Worker';
+        saveBtn.textContent = 'Save Changes';
+        document.getElementById('wf-fname').value = w.fname || '';
+        document.getElementById('wf-lname').value = w.lname || '';
+        document.getElementById('wf-eid').value = w.eid || '';
+        document.getElementById('wf-loc').value = w.location || '';
+        document.getElementById('wf-role').value = w.role || '';
+        document.getElementById('wf-phone').value = w.phone || '';
+        if (document.getElementById('wf-org')) document.getElementById('wf-org').value = w.org || 'flex';
+      } else {
+        title.textContent = 'New Worker';
+        saveBtn.textContent = 'Save Worker';
+        ['wf-fname', 'wf-lname', 'wf-eid', 'wf-role', 'wf-phone'].forEach(id => document.getElementById(id).value = '');
+      }
       openModal('worker-modal');
     }
 
@@ -2861,26 +2891,50 @@
       const origText = btn.textContent;
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
-        const newWorker = {
-          id: 'W' + String(data.nextWorkerId++).padStart(3, '0'),
-          fname, lname,
-          eid: document.getElementById('wf-eid').value,
-          location: document.getElementById('wf-loc').value,
-          role: document.getElementById('wf-role').value,
-          phone: document.getElementById('wf-phone').value,
-          org: orgForNewEntity('wf-org'),
-        };
-        newWorker.barcode = 'WRK-' + newWorker.id;
-        data.workers.push(newWorker);
-        addHistory(`Worker ${fname} ${lname} registered`, 'add');
-        closeModal('worker-modal');
-        renderAll();
-        updateNavBadges();
-        await saveWorkerToSheets(newWorker);
-        await saveHistoryToSheets(`Worker ${fname} ${lname} registered`, 'add');
-        toast('Worker saved to Google Sheets ✓', 'success');
+        if (editingWorkerId) {
+          const w = data.workers.find(x => x.id === editingWorkerId);
+          if (w) {
+            w.fname = fname;
+            w.lname = lname;
+            w.eid = document.getElementById('wf-eid').value;
+            w.location = document.getElementById('wf-loc').value;
+            w.role = document.getElementById('wf-role').value;
+            w.phone = document.getElementById('wf-phone').value;
+            if (currentUser && currentUser.role === 'admin' && document.getElementById('wf-org')) {
+              w.org = document.getElementById('wf-org').value;
+            }
+            closeModal('worker-modal');
+            renderAll();
+            updateNavBadges();
+            await updateWorkerInSheets(w);
+            const msg = `Worker ${fname} ${lname} updated`;
+            addHistory(msg, 'update');
+            await saveHistoryToSheets(msg, 'update');
+            toast('Worker updated ✓', 'success');
+          }
+        } else {
+          const newWorker = {
+            id: 'W' + String(data.nextWorkerId++).padStart(3, '0'),
+            fname, lname,
+            eid: document.getElementById('wf-eid').value,
+            location: document.getElementById('wf-loc').value,
+            role: document.getElementById('wf-role').value,
+            phone: document.getElementById('wf-phone').value,
+            org: orgForNewEntity('wf-org'),
+          };
+          newWorker.barcode = 'WRK-' + newWorker.id;
+          data.workers.push(newWorker);
+          addHistory(`Worker ${fname} ${lname} registered`, 'add');
+          closeModal('worker-modal');
+          renderAll();
+          updateNavBadges();
+          await saveWorkerToSheets(newWorker);
+          await saveHistoryToSheets(`Worker ${fname} ${lname} registered`, 'add');
+          toast('Worker saved to Google Sheets ✓', 'success');
+        }
       } finally {
         _savingWorker = false;
+        editingWorkerId = null;
         btn.disabled = false; btn.textContent = origText;
       }
     }
@@ -3160,7 +3214,10 @@
       </div>`).join('')
         : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No items assigned</div>';
 
-      document.getElementById('od-assign-btn').style.display = 'none';
+      const editBtn = document.getElementById('od-assign-btn');
+      editBtn.style.display = '';
+      editBtn.textContent = 'Edit Worker';
+      editBtn.onclick = () => { closeOverlay(); openWorkerModal(workerId); };
       document.getElementById('od-unassign-btn').style.display = 'none';
       const printBtn = document.getElementById('od-print-btn');
       printBtn.style.display = '';
