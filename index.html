@@ -2286,15 +2286,11 @@
         const items = data.items.filter(it => it.assignedTo === w.id);
         const loc = data.locations.find(l => l.id === w.location);
         const ci = i % avatarColors.length;
-        return `<div class="worker-card" onclick="openWorkerDetail('${w.id}')">
+        return `<div class="worker-card" style="cursor:pointer;" onclick="openWorkerDetail('${w.id}')">
       <div class="worker-avatar" style="background:${avatarColors[ci]};color:${avatarTextColors[ci]}">${w.fname[0]}${w.lname[0]}</div>
       <div class="worker-name">${w.fname} ${w.lname}</div>
       <div class="worker-location">${w.role || '—'} · ${loc ? loc.name : '—'}</div>
       <div class="worker-items"><span>${items.length}</span> item${items.length !== 1 ? 's' : ''} assigned</div>
-      <div style="display:flex;gap:6px;margin-top:10px;">
-        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="event.stopPropagation();printWorkerBadge('${w.id}')">Print Badge</button>
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteWorker('${w.id}')" style="background:var(--red);color:#fff;">✕</button>
-      </div>
     </div>`;
       }).join('');
     }
@@ -2791,7 +2787,10 @@
 
       document.getElementById('od-assign-btn').textContent = worker ? 'Reassign' : 'Assign to Worker';
       document.getElementById('od-assign-btn').style.display = '';
-      document.getElementById('od-print-btn').style.display = '';
+      const printBtnItem = document.getElementById('od-print-btn');
+      printBtnItem.style.display = '';
+      printBtnItem.textContent = 'Print Label';
+      printBtnItem.onclick = () => printDetailBarcode();
       document.getElementById('od-unassign-btn').style.display = '';
       document.getElementById('od-delete-btn').style.display = '';
       document.getElementById('od-delete-btn').onclick = () => deleteItem(itemId);
@@ -2824,10 +2823,12 @@
       </div>`).join('')
         : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No items assigned</div>';
 
-      const btns = document.querySelector('.overlay-body > div[style*="margin-top:20px"]');
       document.getElementById('od-assign-btn').style.display = 'none';
       document.getElementById('od-unassign-btn').style.display = 'none';
-      document.getElementById('od-print-btn').style.display = 'none';
+      const printBtn = document.getElementById('od-print-btn');
+      printBtn.style.display = '';
+      printBtn.textContent = 'Print Badge';
+      printBtn.onclick = () => printWorkerBadge(workerId);
       document.getElementById('od-delete-btn').style.display = '';
       document.getElementById('od-delete-btn').onclick = () => deleteWorker(workerId);
       document.getElementById('item-detail').classList.add('open');
