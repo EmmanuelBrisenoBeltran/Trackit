@@ -9,6 +9,7 @@
     href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap"
     rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
@@ -1717,7 +1718,7 @@
           });
         </script>
         <div class="barcode-panel" id="barcode-preview" style="display:none;">
-          <svg id="barcode-svg"></svg>
+          <div id="barcode-svg" style="background:#fff;padding:6px;border-radius:6px;display:inline-block;"></div>
           <div class="barcode-label" id="barcode-val-label"></div>
           <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="printBarcode()">Print Label</button>
         </div>
@@ -1983,6 +1984,7 @@
       <div id="od-details"></div>
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary btn-sm" id="od-assign-btn" onclick="assignFromDetail()">Assign to Worker</button>
+        <button class="btn btn-ghost btn-sm" id="od-edit-btn" style="display:none;">Edit</button>
         <button class="btn btn-ghost btn-sm" onclick="printDetailBarcode()" id="od-print-btn">Print Label</button>
         <button class="btn btn-danger btn-sm" onclick="unassignItem()" id="od-unassign-btn">Unassign</button>
         <button class="btn btn-danger btn-sm" id="od-delete-btn" style="display:none;">Delete</button>
@@ -3123,10 +3125,10 @@
       document.getElementById('od-code').textContent = item.barcode;
 
       const barcodeDiv = document.getElementById('od-barcode');
-      barcodeDiv.innerHTML = `<svg id="od-barcode-svg"></svg><div class="barcode-label">${item.barcode}</div>`;
+      barcodeDiv.innerHTML = `<div id="od-barcode-qr" style="background:#fff;padding:6px;border-radius:6px;display:inline-block;"></div><div class="barcode-label">${item.barcode}</div>`;
       setTimeout(() => {
         try {
-          JsBarcode('#od-barcode-svg', item.barcode, { format: 'CODE128', width: 1.5, height: 50, displayValue: false, background: 'transparent', lineColor: '#f0f0f0' });
+          new QRCode(document.getElementById('od-barcode-qr'), { text: item.barcode, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.M });
         } catch (e) { }
       }, 50);
 
@@ -3178,6 +3180,11 @@
 
       document.getElementById('od-assign-btn').textContent = worker ? 'Reassign' : 'Assign to Worker';
       document.getElementById('od-assign-btn').style.display = '';
+      document.getElementById('od-assign-btn').onclick = () => assignFromDetail();
+      const editBtn = document.getElementById('od-edit-btn');
+      editBtn.style.display = '';
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = () => { closeOverlay(); openItemModal(itemId); };
       const printBtnItem = document.getElementById('od-print-btn');
       printBtnItem.style.display = '';
       printBtnItem.textContent = 'Print Label';
@@ -3235,17 +3242,42 @@
       document.getElementById('od-unassign-btn').style.display = '';
       document.getElementById('od-print-btn').style.display = '';
       document.getElementById('od-delete-btn').style.display = 'none';
+      const editBtn = document.getElementById('od-edit-btn');
+      if (editBtn) editBtn.style.display = 'none';
     }
 
-    // ─── BARCODE ─────────────────────────────────────────────────
+    // ─── QR CODE ─────────────────────────────────────────────────
     function showBarcode(code) {
       document.getElementById('barcode-preview').style.display = 'block';
       document.getElementById('barcode-val-label').textContent = code;
+      const container = document.getElementById('barcode-svg');
+      container.innerHTML = '';
       setTimeout(() => {
         try {
-          JsBarcode('#barcode-svg', code, { format: 'CODE128', width: 1.8, height: 60, displayValue: true, background: 'transparent', lineColor: '#f0f0f0', fontSize: 12 });
+          new QRCode(container, { text: code, width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
         } catch (e) { }
       }, 50);
+    }
+
+    // Render QR offscreen and return a data URL (for print)
+    function generateQRDataUrl(text, size) {
+      return new Promise((resolve) => {
+        const host = document.createElement('div');
+        host.style.position = 'absolute';
+        host.style.left = '-9999px';
+        document.body.appendChild(host);
+        try {
+          new QRCode(host, { text, width: size || 180, height: size || 180, correctLevel: QRCode.CorrectLevel.M });
+        } catch (e) { document.body.removeChild(host); return resolve(''); }
+        // Library writes a <canvas> and an <img>; canvas is safer for dataURL
+        setTimeout(() => {
+          const canvas = host.querySelector('canvas');
+          const img = host.querySelector('img');
+          const url = canvas ? canvas.toDataURL('image/png') : (img ? img.src : '');
+          document.body.removeChild(host);
+          resolve(url);
+        }, 50);
+      });
     }
 
     function printBarcode() {
@@ -3259,20 +3291,24 @@
       if (item) printLabel(item.barcode, item.name);
     }
 
-    function printLabel(code, name) {
+    async function printLabel(code, name) {
+      const dataUrl = await generateQRDataUrl(code, 220);
       const win = window.open('', '_blank', 'width=1000,height=800');
       win.document.write(`<!DOCTYPE html><html><head><title>Label</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
     <style>
       @page { size: 50mm 30mm; margin: 0; padding: 0; }
       html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
-      .label { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1mm; text-align: center; border: none; outline: none; }
-      h2 { font-size: 13px; margin: 0 0 2px 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 48mm; font-weight: bold; line-height: 1.2; text-overflow: ellipsis; }
-      p { font-size: 10px; margin: 2px 0 0 0; text-align: center; font-family: monospace; font-weight: bold; }
-      svg { height: auto !important; max-height: 12mm; border: none; shape-rendering: crispEdges; }
+      .label { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 2mm; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1.5mm; text-align: center; border: none; outline: none; }
+      .qr { flex-shrink: 0; }
+      .qr img { width: 22mm; height: 22mm; display: block; image-rendering: pixelated; }
+      .text { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; overflow:hidden; }
+      h2 { font-size: 11px; margin: 0 0 2px 0; text-align: center; white-space: normal; overflow: hidden; width: 100%; max-width: 22mm; font-weight: bold; line-height: 1.15; word-break:break-word; }
+      p { font-size: 9px; margin: 0; text-align: center; font-family: monospace; font-weight: bold; word-break:break-all; }
     </style></head>
-    <body><div class="label"><h2>${name}</h2><svg id="bc"></svg><p>${code}</p></div>
-    <script>JsBarcode('#bc','${code}',{format:'CODE128',width:1,height:25,displayValue:false,margin:0});<\/script>
+    <body><div class="label">
+      <div class="qr"><img src="${dataUrl}" alt="QR"></div>
+      <div class="text"><h2>${name}</h2><p>${code}</p></div>
+    </div>
     <script>window.onload=()=>setTimeout(()=>{window.print();window.close();},300)<\/script>
     </body></html>`);
       win.document.close();
@@ -3723,27 +3759,31 @@
       }
     }
 
-    function printWorkerBadge(workerId) {
+    async function printWorkerBadge(workerId) {
       const w = data.workers.find(x => x.id === workerId);
       if (!w) return;
       const code = w.barcode || ('WRK-' + w.id);
+      const dataUrl = await generateQRDataUrl(code, 220);
       const win = window.open('', '_blank', 'width=1000,height=800');
       win.document.write(`<!DOCTYPE html><html><head><title>Worker Badge</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"><\/script>
     <style>
       @page { size: 50mm 30mm; margin: 0; padding: 0; }
       html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
-      .badge { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1mm; text-align: center; border: none; outline: none; }
-      h2 { font-size: 12px; margin: 0 0 1px 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 48mm; font-weight: bold; line-height: 1.2; text-overflow: ellipsis; }
-      .role { font-size: 10px; color: #333; margin: 0 0 2px 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 48mm; text-overflow: ellipsis; line-height: 1.1; }
-      p { font-size: 10px; margin: 2px 0 0 0; text-align: center; font-family: monospace; font-weight: bold; }
-      svg { height: auto !important; max-height: 11mm; border: none; shape-rendering: crispEdges; }
+      .badge { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 2mm; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1.5mm; text-align: center; border: none; outline: none; }
+      .qr img { width: 22mm; height: 22mm; display:block; image-rendering: pixelated; }
+      .text { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; overflow:hidden; }
+      h2 { font-size: 11px; margin: 0 0 1px 0; text-align: center; white-space: normal; overflow: hidden; width: 100%; max-width: 22mm; font-weight: bold; line-height: 1.15; word-break:break-word; }
+      .role { font-size: 9px; color: #333; margin: 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 22mm; text-overflow: ellipsis; }
+      p { font-size: 8px; margin: 1px 0 0 0; text-align: center; font-family: monospace; font-weight: bold; word-break:break-all; }
     </style></head>
     <body><div class="badge">
-    <h2>${w.fname} ${w.lname}</h2>
-    <div class="role">${w.role || ''} ${w.eid ? '· ' + w.eid : ''}</div>
-    <svg id="bc"></svg><p>${code}</p></div>
-    <script>JsBarcode('#bc','${code}',{format:'CODE128',width:1,height:22,displayValue:false,margin:0});<\/script>
+      <div class="qr"><img src="${dataUrl}" alt="QR"></div>
+      <div class="text">
+        <h2>${w.fname} ${w.lname}</h2>
+        <div class="role">${w.role || ''} ${w.eid ? '· ' + w.eid : ''}</div>
+        <p>${code}</p>
+      </div>
+    </div>
     <script>window.onload=()=>setTimeout(()=>{window.print();window.close();},300)<\/script>
     </body></html>`);
       win.document.close();
