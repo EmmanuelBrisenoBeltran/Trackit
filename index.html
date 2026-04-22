@@ -2244,7 +2244,10 @@
         ${worker ? `<span style="font-size:12px;">${worker.fname} ${worker.lname}</span>${item.isBulk ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">${item.quantity} qty</div>` : ''}` : '<span style="color:var(--text3)">—</span>'}
         ${item.eventId ? (() => { const ev = data.events.find(e => e.id === item.eventId); return ev ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">◆ ${ev.name}</div>` : ''; })() : ''}
       </td>
-      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAssign('${item.id}')">Assign</button></td>
+      <td style="display:flex;gap:4px;align-items:center;">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAssign('${item.id}')">Assign</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteItem('${item.id}')" style="background:var(--red);color:#fff;">✕</button>
+      </td>
     </tr>`;
       }).join('');
     }
@@ -2269,7 +2272,10 @@
       <div class="worker-name">${w.fname} ${w.lname}</div>
       <div class="worker-location">${w.role || '—'} · ${loc ? loc.name : '—'}</div>
       <div class="worker-items"><span>${items.length}</span> item${items.length !== 1 ? 's' : ''} assigned</div>
-      <button class="btn btn-ghost btn-sm" style="margin-top:10px;width:100%;" onclick="event.stopPropagation();printWorkerBadge('${w.id}')">Print Badge</button>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="event.stopPropagation();printWorkerBadge('${w.id}')">Print Badge</button>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteWorker('${w.id}')" style="background:var(--red);color:#fff;">✕</button>
+      </div>
     </div>`;
       }).join('');
     }
@@ -2296,6 +2302,7 @@
         <div class="loc-stat"><div class="loc-stat-val">${assigned}</div><div class="loc-stat-lab">Assigned</div></div>
         <div class="loc-stat"><div class="loc-stat-val">${workers.length}</div><div class="loc-stat-lab">Workers</div></div>
       </div>
+      <button class="btn btn-danger btn-sm" style="margin-top:12px;width:100%;background:var(--red);color:#fff;" onclick="event.stopPropagation();deleteLocation('${loc.id}')">Delete Location</button>
     </div>`;
       }).join('');
     }
