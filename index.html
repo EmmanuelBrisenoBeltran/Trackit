@@ -1270,7 +1270,6 @@
                   <th>Qty</th>
                   <th>Status</th>
                   <th>Assigned To</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody id="items-tbody"></tbody>
@@ -2244,7 +2243,7 @@
 
       const tbody = document.getElementById('items-tbody');
       if (!items.length) {
-        tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">▦</div><div class="empty-title">No items found</div><div class="empty-sub">Try adjusting your filters</div></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">▦</div><div class="empty-title">No items found</div><div class="empty-sub">Try adjusting your filters</div></div></td></tr>`;
         return;
       }
 
@@ -2262,10 +2261,6 @@
       <td>
         ${worker ? `<span style="font-size:12px;">${worker.fname} ${worker.lname}</span>${item.isBulk ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">${item.quantity} qty</div>` : ''}` : '<span style="color:var(--text3)">—</span>'}
         ${item.eventId ? (() => { const ev = data.events.find(e => e.id === item.eventId); return ev ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">◆ ${ev.name}</div>` : ''; })() : ''}
-      </td>
-      <td style="display:flex;gap:4px;align-items:center;">
-        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAssign('${item.id}')">Assign</button>
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteItem('${item.id}')" style="background:var(--red);color:#fff;">✕</button>
       </td>
     </tr>`;
       }).join('');
