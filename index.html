@@ -2442,6 +2442,7 @@
       editingItemId = itemId;
       document.getElementById('item-modal-title').textContent = itemId ? 'Edit Item' : 'New Item';
       document.getElementById('item-save-btn').textContent = itemId ? 'Save Changes' : 'Save Item';
+      populateLocationSelects();
 
       if (itemId) {
         const item = data.items.find(i => i.id === itemId);
@@ -2534,6 +2535,7 @@
     // ─── WORKER MODAL ─────────────────────────────────────────────
     function openWorkerModal() {
       ['wf-fname', 'wf-lname', 'wf-eid', 'wf-role', 'wf-phone'].forEach(id => document.getElementById(id).value = '');
+      populateLocationSelects();
       openModal('worker-modal');
     }
 
