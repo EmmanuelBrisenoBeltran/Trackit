@@ -680,7 +680,7 @@
     }
 
     .worker-card:hover {
-      border-color: var(--border2);
+      border-color: var(--accent);
     }
 
     .worker-avatar {
@@ -1637,7 +1637,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal('worker-modal')">Cancel</button>
-        <button class="btn btn-primary" onclick="saveWorker()">Save Worker</button>
+        <button class="btn btn-primary" onclick="saveWorker()" id="worker-save-btn">Save Worker</button>
       </div>
     </div>
   </div>
@@ -1677,7 +1677,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal('location-modal')">Cancel</button>
-        <button class="btn btn-primary" onclick="saveLocation()">Save Location</button>
+        <button class="btn btn-primary" onclick="saveLocation()" id="location-save-btn">Save Location</button>
       </div>
     </div>
   </div>
@@ -2473,11 +2473,18 @@
       openModal('item-modal');
     }
 
+    let _savingItem = false;
     async function saveItem() {
+      if (_savingItem) return;
       const name = document.getElementById('f-name').value.trim();
       if (!name) { toast('Item name is required', 'error'); return; }
       const loc = document.getElementById('f-loc').value;
       if (!loc) { toast('Please select a location', 'error'); return; }
+      _savingItem = true;
+      const btn = document.getElementById('item-save-btn');
+      const origText = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
 
       if (editingItemId) {
         const item = data.items.find(i => i.id === editingItemId);
@@ -2525,6 +2532,10 @@
       closeModal('item-modal');
       renderAll();
       updateNavBadges();
+      } finally {
+        _savingItem = false;
+        btn.disabled = false; btn.textContent = origText;
+      }
     }
 
     // ─── WORKER MODAL ─────────────────────────────────────────────
@@ -2534,48 +2545,70 @@
       openModal('worker-modal');
     }
 
+    let _savingWorker = false;
     async function saveWorker() {
+      if (_savingWorker) return;
       const fname = document.getElementById('wf-fname').value.trim();
       const lname = document.getElementById('wf-lname').value.trim();
       if (!fname || !lname) { toast('Name is required', 'error'); return; }
-      const newWorker = {
-        id: 'W' + String(data.nextWorkerId++).padStart(3, '0'),
-        fname, lname,
-        eid: document.getElementById('wf-eid').value,
-        location: document.getElementById('wf-loc').value,
-        role: document.getElementById('wf-role').value,
-        phone: document.getElementById('wf-phone').value,
-      };
-      newWorker.barcode = 'WRK-' + newWorker.id;
-      data.workers.push(newWorker);
-      addHistory(`Worker ${fname} ${lname} registered`, 'add');
-      closeModal('worker-modal');
-      renderAll();
-      updateNavBadges();
-      await saveWorkerToSheets(newWorker);
-      await saveHistoryToSheets(`Worker ${fname} ${lname} registered`, 'add');
-      toast('Worker saved to Google Sheets ✓', 'success');
+      _savingWorker = true;
+      const btn = document.getElementById('worker-save-btn');
+      const origText = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const newWorker = {
+          id: 'W' + String(data.nextWorkerId++).padStart(3, '0'),
+          fname, lname,
+          eid: document.getElementById('wf-eid').value,
+          location: document.getElementById('wf-loc').value,
+          role: document.getElementById('wf-role').value,
+          phone: document.getElementById('wf-phone').value,
+        };
+        newWorker.barcode = 'WRK-' + newWorker.id;
+        data.workers.push(newWorker);
+        addHistory(`Worker ${fname} ${lname} registered`, 'add');
+        closeModal('worker-modal');
+        renderAll();
+        updateNavBadges();
+        await saveWorkerToSheets(newWorker);
+        await saveHistoryToSheets(`Worker ${fname} ${lname} registered`, 'add');
+        toast('Worker saved to Google Sheets ✓', 'success');
+      } finally {
+        _savingWorker = false;
+        btn.disabled = false; btn.textContent = origText;
+      }
     }
 
     // ─── LOCATION MODAL ───────────────────────────────────────────
+    let _savingLocation = false;
     async function saveLocation() {
+      if (_savingLocation) return;
       const name = document.getElementById('lf-name').value.trim();
       if (!name) { toast('Location name required', 'error'); return; }
-      const id = 'LOC' + String(data.locations.length + 1).padStart(3, '0');
-      data.locations.push({
-        id, name,
-        address: document.getElementById('lf-addr').value,
-        type: document.getElementById('lf-type').value,
-        admin: document.getElementById('lf-admin').value,
-      });
-      addHistory(`Location "${name}" added`, 'add');
-      await saveLocationToSheets(data.locations[data.locations.length - 1]);
-      await saveHistoryToSheets(`Location "${name}" added`, 'add');
-      toast('Location saved to Google Sheets ✓', 'success');
-      closeModal('location-modal');
-      populateLocationSelects();
-      renderAll();
-      updateNavBadges();
+      _savingLocation = true;
+      const btn = document.getElementById('location-save-btn');
+      const origText = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const id = 'LOC' + String(data.locations.length + 1).padStart(3, '0');
+        data.locations.push({
+          id, name,
+          address: document.getElementById('lf-addr').value,
+          type: document.getElementById('lf-type').value,
+          admin: document.getElementById('lf-admin').value,
+        });
+        addHistory(`Location "${name}" added`, 'add');
+        await saveLocationToSheets(data.locations[data.locations.length - 1]);
+        await saveHistoryToSheets(`Location "${name}" added`, 'add');
+        toast('Location saved to Google Sheets ✓', 'success');
+        closeModal('location-modal');
+        populateLocationSelects();
+        renderAll();
+        updateNavBadges();
+      } finally {
+        _savingLocation = false;
+        btn.disabled = false; btn.textContent = origText;
+      }
     }
 
     // ─── ASSIGN ───────────────────────────────────────────────────
@@ -3474,11 +3507,18 @@
       openModal('event-modal');
     }
 
-    function saveEvent() {
+    let _savingEvent = false;
+    async function saveEvent() {
+      if (_savingEvent) return;
       const name = document.getElementById('ef-name').value.trim();
       if (!name) { toast('Event name is required', 'error'); return; }
       const start = document.getElementById('ef-start').value;
       if (!start) { toast('Date is required', 'error'); return; }
+      _savingEvent = true;
+      const btn = document.getElementById('event-save-btn');
+      const origText = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
 
       const managers = [...document.querySelectorAll('#ef-managers-list input[type=checkbox]:checked')].map(cb => cb.value);
 
@@ -3504,14 +3544,18 @@
           created: new Date().toISOString().split('T')[0],
         };
         data.events.push(ev);
-        saveEventToSheets(ev);
+        await saveEventToSheets(ev);
         addHistory(`Event "${name}" created`, 'add');
-        saveHistoryToSheets(`Event "${name}" created`, 'add');
+        await saveHistoryToSheets(`Event "${name}" created`, 'add');
         toast('Event created ✓', 'success');
       }
       closeModal('event-modal');
       renderAll();
       updateNavBadges();
+      } finally {
+        _savingEvent = false;
+        btn.disabled = false; btn.textContent = origText;
+      }
     }
 
     function deleteEvent() {
