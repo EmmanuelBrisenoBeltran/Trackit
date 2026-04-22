@@ -185,6 +185,82 @@
       color: var(--text3);
     }
 
+    /* ── LOGIN OVERLAY ── */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-overlay.open { display: flex; }
+    .login-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px 28px;
+      width: 360px;
+      max-width: 90vw;
+    }
+    .login-card h1 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .login-card p {
+      margin: 0 0 24px;
+      font-size: 12px;
+      color: var(--text3);
+    }
+    .login-field { margin-bottom: 14px; }
+    .login-field label {
+      display: block;
+      font-size: 11px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .login-error {
+      color: var(--red);
+      font-size: 12px;
+      margin-top: 8px;
+      min-height: 16px;
+    }
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg3);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
+    .user-pill-name {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .user-pill-org {
+      font-size: 10px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text3);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .logout-btn:hover { color: var(--red); border-color: var(--red); }
+
     .location-pill {
       display: flex;
       align-items: center;
@@ -1095,6 +1171,24 @@
 
 <body>
 
+  <!-- LOGIN OVERLAY -->
+  <div class="login-overlay" id="login-overlay">
+    <div class="login-card">
+      <h1>TrackIt</h1>
+      <p>Sign in to continue</p>
+      <div class="login-field">
+        <label>Username</label>
+        <input class="form-input" id="login-username" autocomplete="username">
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input class="form-input" id="login-password" type="password" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" id="login-submit" onclick="submitLogin()" style="width:100%;">Sign in</button>
+      <div class="login-error" id="login-error"></div>
+    </div>
+  </div>
+
   <div class="app">
 
     <!-- SIDEBAR -->
@@ -1136,9 +1230,13 @@
         </div>
         <div class="nav-section">
           <div class="nav-label">Tools</div>
-          <button class="nav-item" onclick="showView('events', this)">
+          <button class="nav-item" data-org="flux" onclick="showView('events', this)">
             <span class="icon">◆</span> Events
             <span class="nav-badge" id="nb-events">0</span>
+          </button>
+          <button class="nav-item" data-org="flex" onclick="showView('routes', this)">
+            <span class="icon">◆</span> Routes
+            <span class="nav-badge" id="nb-routes">0</span>
           </button>
           <button class="nav-item" onclick="showView('assignments', this)">
             <span class="icon">⇄</span> Assignments
@@ -1153,6 +1251,13 @@
       </nav>
 
       <div class="sidebar-footer">
+        <div class="user-pill" id="user-pill">
+          <div style="flex:1;">
+            <div class="user-pill-name" id="user-pill-name">—</div>
+            <div class="user-pill-org" id="user-pill-org">—</div>
+          </div>
+          <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
         <div class="location-pill" onclick="openLocationModal()">
           <div class="location-dot"></div>
           <span class="location-name" id="current-loc-name">All Locations</span>
@@ -1302,6 +1407,23 @@
             <button class="btn btn-primary btn-sm" onclick="openEventModal()">+ New Event</button>
           </div>
           <div id="events-grid"
+            style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;"></div>
+        </div>
+
+        <!-- ROUTES -->
+        <div class="view" id="view-routes">
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+            <select class="form-select" style="width:auto;" id="filter-route-status" onchange="renderRoutes()">
+              <option value="recent" selected>Active & Recent (30 Days)</option>
+              <option value="archive">Route History (Full Archive)</option>
+              <option value="Upcoming">Upcoming</option>
+              <option value="Active">Active Only</option>
+              <option value="Closed">Closed Only</option>
+            </select>
+            <div style="flex:1;"></div>
+            <button class="btn btn-primary btn-sm" onclick="openRouteModal()">+ New Route</button>
+          </div>
+          <div id="routes-grid"
             style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;"></div>
         </div>
 
@@ -1578,6 +1700,13 @@
             <label class="form-label">Notes</label>
             <textarea class="form-textarea" id="f-notes" placeholder="Any additional info..."></textarea>
           </div>
+          <div class="form-group admin-only" id="f-org-group" style="display:none;">
+            <label class="form-label">Organization</label>
+            <select class="form-select" id="f-org">
+              <option value="flex">Flex</option>
+              <option value="flux">Flux</option>
+            </select>
+          </div>
         </div>
         <script>
           document.getElementById && document.getElementById('f-uid-type') && document.getElementById('f-uid-type').addEventListener('change', function () {
@@ -1633,6 +1762,13 @@
             <label class="form-label">Phone</label>
             <input class="form-input" id="wf-phone" placeholder="+1 555 0000">
           </div>
+          <div class="form-group admin-only" id="wf-org-group" style="display:none;">
+            <label class="form-label">Organization</label>
+            <select class="form-select" id="wf-org">
+              <option value="flex">Flex</option>
+              <option value="flux">Flux</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -1672,6 +1808,13 @@
           <div class="form-group">
             <label class="form-label">Admin Name</label>
             <input class="form-input" id="lf-admin" placeholder="Location admin">
+          </div>
+          <div class="form-group admin-only" id="lf-org-group" style="display:none;">
+            <label class="form-label">Organization</label>
+            <select class="form-select" id="lf-org">
+              <option value="flex">Flex</option>
+              <option value="flux">Flux</option>
+            </select>
           </div>
         </div>
       </div>
@@ -1959,13 +2102,17 @@
         const history = await sheetsGet('History');
         await delay();
         const events = await sheetsGet('Events');
+        await delay();
+        const routes = await sheetsGet('Routes');
 
         if (locs.length) data.locations = locs.map(r => ({
-          id: r.ID, name: r.Name, address: r.Address, type: r.Type, admin: r.Admin
+          id: r.ID, name: r.Name, address: r.Address, type: r.Type, admin: r.Admin,
+          org: (r.Org || 'flex').toLowerCase(),
         }));
         if (workers.length) data.workers = workers.map(r => ({
           id: r.ID, fname: r.FirstName, lname: r.LastName,
-          eid: r.EmployeeID, location: r.Location, role: r.Role, phone: r.Phone
+          eid: r.EmployeeID, location: r.Location, role: r.Role, phone: r.Phone,
+          org: (r.Org || 'flex').toLowerCase(),
         }));
         if (items.length) data.items = items.map(r => {
           let isBulk = (r.IsBulk === 'TRUE' || r.IsBulk === true);
@@ -1982,6 +2129,7 @@
             location: r.Location, brand: r.Brand, serial: r.Serial,
             condition: r.Condition, status: r.Status,
             assignedTo: r.AssignedTo || null, eventId: r.EventID || null, notes: notes, uidType: r.UIDType || '', uid: r.UID || '', created: r.Created,
+            org: (r.Org || 'flex').toLowerCase(),
             isBulk, quantity
           };
         });
@@ -1996,6 +2144,15 @@
         }));
         const allEventNums = data.events.map(e => parseInt((e.id || '').replace('EVT', ''))).filter(n => !isNaN(n));
         if (allEventNums.length) data.nextEventId = Math.max(...allEventNums) + 1;
+
+        if (routes.length) data.routes = routes.map(r => ({
+          id: r.ID, name: r.Name, start: r.Start, end: r.End,
+          location: r.Location, status: r.Status, notes: r.Notes,
+          managers: r.Managers ? r.Managers.split(',').filter(Boolean) : [],
+          created: r.Created
+        }));
+        const allRouteNums = data.routes.map(r => parseInt((r.id || '').replace('RTE', ''))).filter(n => !isNaN(n));
+        if (allRouteNums.length) data.nextRouteId = Math.max(...allRouteNums) + 1;
 
         // Update counters
         const allBarcodes = data.items.map(i => parseInt((i.barcode || '').replace('TRK-', ''))).filter(n => !isNaN(n));
@@ -2052,6 +2209,7 @@
         AssignedTo: item.assignedTo || '', EventID: item.eventId || '',
         Notes: serializeNotes(item),
         UIDType: item.uidType || '', UID: item.uid || '',
+        Org: item.org || 'flex',
         Created: item.created, IsBulk: item.isBulk ? 'TRUE' : 'FALSE', Quantity: item.quantity || 1
       });
     }
@@ -2065,6 +2223,7 @@
         AssignedTo: item.assignedTo || '', EventID: item.eventId || '',
         Notes: serializeNotes(item),
         UIDType: item.uidType || '', UID: item.uid || '',
+        Org: item.org || 'flex',
         Created: item.created, IsBulk: item.isBulk ? 'TRUE' : 'FALSE', Quantity: item.quantity || 1
       });
     }
@@ -2074,6 +2233,7 @@
         ID: worker.id, FirstName: worker.fname, LastName: worker.lname,
         EmployeeID: worker.eid || '', Location: worker.location,
         Role: worker.role || '', Phone: worker.phone || '',
+        Org: worker.org || 'flex',
         Created: new Date().toISOString().split('T')[0]
       });
     }
@@ -2082,6 +2242,7 @@
       await sheetsPost('append', 'Locations', {
         ID: loc.id, Name: loc.name, Address: loc.address || '',
         Type: loc.type, Admin: loc.admin || '',
+        Org: loc.org || 'flex',
         Created: new Date().toISOString().split('T')[0]
       });
     }
@@ -2120,8 +2281,127 @@
       nextItemId: 1,
       nextWorkerId: 1,
       nextEventId: 1,
+      nextRouteId: 1,
       events: [],
+      routes: [],
     };
+
+    // ─── SCHEDULE KIND (Events vs Routes) ─────────────────────────
+    let scheduleKind = 'event'; // set by the caller before invoking event-like functions
+    const SCHED = {
+      event: { sheet: 'Events', idPrefix: 'EVT', label: 'Event',
+               arr: () => data.events,
+               nextId: () => data.nextEventId++,
+               filterEl: 'filter-event-status', gridEl: 'events-grid' },
+      route: { sheet: 'Routes', idPrefix: 'RTE', label: 'Route',
+               arr: () => data.routes,
+               nextId: () => data.nextRouteId++,
+               filterEl: 'filter-route-status', gridEl: 'routes-grid' },
+    };
+    function schedCfg() { return SCHED[scheduleKind]; }
+
+    // ─── AUTH / SESSION ───────────────────────────────────────────
+    let currentUser = null; // { username, role, org, name }
+
+    function orgMatches(entityOrg) {
+      if (!currentUser) return false;
+      if (currentUser.role === 'admin') return true;
+      const eo = (entityOrg || 'flex').toLowerCase();
+      return eo === currentUser.org;
+    }
+
+    // Pick the org to stamp on a new entity. Managers always use their own org.
+    // Admin uses the selector (defaults to flex) in the modal, or 'flex' if no selector.
+    function orgForNewEntity(selectId) {
+      if (!currentUser) return 'flex';
+      if (currentUser.role !== 'admin') return currentUser.org;
+      const el = selectId && document.getElementById(selectId);
+      return el && el.value ? el.value : 'flex';
+    }
+
+    function loadSession() {
+      try {
+        const raw = localStorage.getItem('trackit_user');
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch { return null; }
+    }
+
+    function saveSession(user) {
+      localStorage.setItem('trackit_user', JSON.stringify(user));
+    }
+
+    function clearSession() {
+      localStorage.removeItem('trackit_user');
+    }
+
+    function logout() {
+      clearSession();
+      currentUser = null;
+      location.reload();
+    }
+
+    function showLogin() {
+      document.getElementById('login-overlay').classList.add('open');
+      setTimeout(() => document.getElementById('login-username').focus(), 50);
+    }
+
+    function hideLogin() {
+      document.getElementById('login-overlay').classList.remove('open');
+    }
+
+    async function submitLogin() {
+      const u = document.getElementById('login-username').value.trim();
+      const p = document.getElementById('login-password').value;
+      const errEl = document.getElementById('login-error');
+      const btn = document.getElementById('login-submit');
+      errEl.textContent = '';
+      if (!u || !p) { errEl.textContent = 'Enter username and password'; return; }
+      btn.disabled = true; btn.textContent = 'Signing in…';
+      const res = await sheetsPost('auth', '_', { username: u, password: p });
+      btn.disabled = false; btn.textContent = 'Sign in';
+      if (res && res.success && res.user) {
+        currentUser = res.user;
+        saveSession(res.user);
+        hideLogin();
+        applyUserScope();
+        await syncFromSheets();
+      } else {
+        errEl.textContent = (res && res.error) || 'Sign in failed';
+      }
+    }
+
+    function applyUserScope() {
+      if (!currentUser) return;
+      document.getElementById('user-pill-name').textContent = currentUser.name || currentUser.username;
+      document.getElementById('user-pill-org').textContent = currentUser.role === 'admin' ? 'Admin · All' : currentUser.org.toUpperCase();
+      // Hide nav items that don't match current org
+      document.querySelectorAll('.nav-item[data-org]').forEach(btn => {
+        const orgNeeded = btn.getAttribute('data-org');
+        const visible = currentUser.role === 'admin' || currentUser.org === orgNeeded;
+        btn.style.display = visible ? '' : 'none';
+      });
+      // Show admin-only org pickers in creation modals
+      document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = currentUser.role === 'admin' ? '' : 'none';
+      });
+      // If currentView is hidden, jump to dashboard
+      const activeNav = document.querySelector('.nav-item.active');
+      if (activeNav && activeNav.style.display === 'none') {
+        showView('dashboard', document.querySelector('.nav-item[onclick*="dashboard"]'));
+      }
+    }
+
+    async function bootstrap() {
+      const saved = loadSession();
+      if (saved) {
+        currentUser = saved;
+        applyUserScope();
+        await syncFromSheets();
+      } else {
+        showLogin();
+      }
+    }
 
     let currentView = 'dashboard';
     let editingItemId = null;
@@ -2137,9 +2417,15 @@
       populateLocationSelects();
       renderAll();
       updateNavBadges();
-      syncFromSheets();
       document.getElementById('topbar-action').onclick = () => topbarAction();
       document.getElementById('sync-btn').onclick = () => syncFromSheets();
+      document.getElementById('login-password').addEventListener('keydown', e => {
+        if (e.key === 'Enter') submitLogin();
+      });
+      document.getElementById('login-username').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('login-password').focus();
+      });
+      bootstrap();
     };
 
     function renderAll() {
@@ -2148,6 +2434,7 @@
       renderWorkers();
       renderLocations();
       renderEvents();
+      renderRoutes();
       renderAssignments();
       renderHistory();
     }
@@ -2169,9 +2456,11 @@
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       if (btn) btn.classList.add('active');
       currentView = view;
-      const titles = { dashboard: 'Dashboard', items: 'Inventory Items', workers: 'Workers', locations: 'Locations', events: 'Events', assignments: 'Assignments', scan: 'Scan Barcode', history: 'Activity Log' };
+      if (view === 'events') scheduleKind = 'event';
+      else if (view === 'routes') scheduleKind = 'route';
+      const titles = { dashboard: 'Dashboard', items: 'Inventory Items', workers: 'Workers', locations: 'Locations', events: 'Events', routes: 'Routes', assignments: 'Assignments', scan: 'Scan Barcode', history: 'Activity Log' };
       document.getElementById('topbar-title').textContent = titles[view] || view;
-      const actions = { items: '+ Add Item', workers: '+ Add Worker', locations: '+ Add Location', events: '+ New Event', dashboard: '+ Add Item' };
+      const actions = { items: '+ Add Item', workers: '+ Add Worker', locations: '+ Add Location', events: '+ New Event', routes: '+ New Route', dashboard: '+ Add Item' };
       document.getElementById('topbar-action').textContent = actions[view] || '+ Add';
 
       if (view !== 'scan' && scannerRunning) stopScanner();
@@ -2182,6 +2471,7 @@
       if (currentView === 'workers') openWorkerModal();
       else if (currentView === 'locations') openModal('location-modal');
       else if (currentView === 'events') openEventModal();
+      else if (currentView === 'routes') openRouteModal();
       else openItemModal();
     }
 
@@ -2191,8 +2481,8 @@
 
     // ─── DASHBOARD ───────────────────────────────────────────────
     function renderDashboard() {
-      const activeItems = data.items.filter(i => !globalLocationFilter || i.location === globalLocationFilter);
-      const activeWorkers = data.workers.filter(w => !globalLocationFilter || w.location === globalLocationFilter);
+      const activeItems = data.items.filter(i => orgMatches(i.org) && (!globalLocationFilter || i.location === globalLocationFilter));
+      const activeWorkers = data.workers.filter(w => orgMatches(w.org) && (!globalLocationFilter || w.location === globalLocationFilter));
 
       const total = activeItems.length;
       const assigned = activeItems.filter(i => i.status === 'Assigned').length;
@@ -2231,6 +2521,7 @@
 
       let items = data.items.filter(item => {
         if (item.status === 'Archived') return false;
+        if (!orgMatches(item.org)) return false;
         const matchGlobal = !globalLocationFilter || item.location === globalLocationFilter;
         const matchCat = !cat || item.category === cat;
         const matchSt = !status || item.status === status;
@@ -2272,7 +2563,7 @@
 
     function renderWorkers() {
       const grid = document.getElementById('workers-grid');
-      const activeWorkers = data.workers.filter(w => !globalLocationFilter || w.location === globalLocationFilter);
+      const activeWorkers = data.workers.filter(w => orgMatches(w.org) && (!globalLocationFilter || w.location === globalLocationFilter));
       if (!activeWorkers.length) {
         grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">◈</div><div class="empty-title">No workers yet</div><div class="empty-sub">Add your first worker to get started</div></div>`;
         return;
@@ -2294,7 +2585,8 @@
     function renderLocations() {
       const grid = document.getElementById('locations-grid');
       const icons = { Warehouse: '🏭', Office: '🏢', Store: '🏪', 'Field Site': '🏗️', Other: '📍' };
-      grid.innerHTML = data.locations.map(loc => {
+      const visibleLocs = data.locations.filter(loc => orgMatches(loc.org));
+      grid.innerHTML = visibleLocs.map(loc => {
         const items = data.items.filter(i => i.location === loc.id);
         const assigned = items.filter(i => i.status === 'Assigned').length;
         const workers = data.workers.filter(w => w.location === loc.id);
@@ -2522,6 +2814,7 @@
           notes: document.getElementById('f-notes').value,
           uidType: document.getElementById('f-uid-type').value,
           uid: document.getElementById('f-uid').value,
+          org: orgForNewEntity('f-org'),
           created: new Date().toISOString().split('T')[0],
         });
         addHistory(`${name} added to ${locObj ? locObj.name : loc}`, 'add');
@@ -2563,6 +2856,7 @@
           location: document.getElementById('wf-loc').value,
           role: document.getElementById('wf-role').value,
           phone: document.getElementById('wf-phone').value,
+          org: orgForNewEntity('wf-org'),
         };
         newWorker.barcode = 'WRK-' + newWorker.id;
         data.workers.push(newWorker);
@@ -2596,6 +2890,7 @@
           address: document.getElementById('lf-addr').value,
           type: document.getElementById('lf-type').value,
           admin: document.getElementById('lf-admin').value,
+          org: orgForNewEntity('lf-org'),
         });
         addHistory(`Location "${name}" added`, 'add');
         await saveLocationToSheets(data.locations[data.locations.length - 1]);
@@ -3396,12 +3691,16 @@
       Closed: { bg: 'var(--bg4)', color: 'var(--text3)' },
     };
 
+    function renderRoutes() { scheduleKind = 'route'; renderEvents(); scheduleKind = 'event'; }
+
     function renderEvents() {
-      const grid = document.getElementById('events-grid');
+      const cfg = schedCfg();
+      const grid = document.getElementById(cfg.gridEl);
       if (!grid) return;
-      const filter = document.getElementById('filter-event-status')?.value || 'recent';
+      const filter = document.getElementById(cfg.filterEl)?.value || 'recent';
       const now = new Date();
-      let evs = data.events.filter(e => {
+      const labelLower = cfg.label.toLowerCase();
+      let evs = cfg.arr().filter(e => {
         if (e.status === 'Deleted') return false; // Always hide
 
         if (filter === 'archive') {
@@ -3421,19 +3720,20 @@
       if (!evs.length) {
         grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
       <div class="empty-icon">◆</div>
-      <div class="empty-title">No events yet</div>
-      <div class="empty-sub">Create your first event to start tracking assignments</div>
+      <div class="empty-title">No ${labelLower}s yet</div>
+      <div class="empty-sub">Create your first ${labelLower} to start tracking assignments</div>
     </div>`;
         return;
       }
 
       evs = [...evs].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+      const kindAttr = scheduleKind;
       grid.innerHTML = evs.map(ev => {
         const sc = eventStatusColors[ev.status] || eventStatusColors.Upcoming;
         const managers = (ev.managers || []).map(id => data.workers.find(w => w.id === id)).filter(Boolean);
         const assignedItems = data.items.filter(i => i.eventId === ev.id);
         const totalUnits = assignedItems.reduce((s, i) => s + (i.isBulk ? (i.quantity || 1) : 1), 0);
-        return `<div class="location-card" onclick="openEventDetail('${ev.id}')">
+        return `<div class="location-card" onclick="openEventDetail('${ev.id}', '${kindAttr}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
         <div style="font-size:15px;font-weight:600;flex:1;margin-right:8px;">${ev.name}</div>
         <span class="badge" style="background:${sc.bg};color:${sc.color};flex-shrink:0;">${ev.status}</span>
@@ -3464,18 +3764,23 @@
       }).join('');
     }
 
+    function openRouteModal(routeId = null) { scheduleKind = 'route'; openEventModal(routeId); }
+
     function openEventModal(eventId = null) {
+      const cfg = schedCfg();
       editingEventId = eventId;
-      document.getElementById('event-modal-title').textContent = eventId ? 'Edit Event' : 'New Event';
-      document.getElementById('event-save-btn').textContent = eventId ? 'Save Changes' : 'Create Event';
+      document.getElementById('event-modal-title').textContent = (eventId ? 'Edit ' : 'New ') + cfg.label;
+      document.getElementById('event-save-btn').textContent = eventId ? 'Save Changes' : 'Create ' + cfg.label;
+      document.getElementById('event-delete-btn').textContent = 'Delete ' + cfg.label;
       document.getElementById('event-delete-btn').style.display = eventId ? '' : 'none';
 
       const locSel = document.getElementById('ef-location');
+      const visibleLocs = data.locations.filter(l => orgMatches(l.org));
       locSel.innerHTML = '<option value="">Select a location…</option>' +
-        data.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+        visibleLocs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
 
       if (eventId) {
-        const ev = data.events.find(e => e.id === eventId);
+        const ev = cfg.arr().find(e => e.id === eventId);
         if (ev) {
           document.getElementById('ef-name').value = ev.name;
           document.getElementById('ef-start').value = ev.start;
@@ -3490,10 +3795,11 @@
         document.getElementById('ef-status').value = 'Upcoming';
       }
 
-      // Populate managers checkboxes
+      // Populate managers checkboxes — only workers from the same org
       const list = document.getElementById('ef-managers-list');
-      const currentManagers = editingEventId ? (data.events.find(e => e.id === editingEventId)?.managers || []) : [];
-      list.innerHTML = data.workers.map(w => {
+      const currentManagers = editingEventId ? (cfg.arr().find(e => e.id === editingEventId)?.managers || []) : [];
+      const visibleWorkers = data.workers.filter(w => orgMatches(w.org));
+      list.innerHTML = visibleWorkers.map(w => {
         const loc = data.locations.find(l => l.id === w.location);
         return `<div class="assign-item">
       <input type="checkbox" id="mgr-${w.id}" value="${w.id}" ${currentManagers.includes(w.id) ? 'checked' : ''}>
@@ -3510,8 +3816,9 @@
     let _savingEvent = false;
     async function saveEvent() {
       if (_savingEvent) return;
+      const cfg = schedCfg();
       const name = document.getElementById('ef-name').value.trim();
-      if (!name) { toast('Event name is required', 'error'); return; }
+      if (!name) { toast(cfg.label + ' name is required', 'error'); return; }
       const start = document.getElementById('ef-start').value;
       if (!start) { toast('Date is required', 'error'); return; }
       _savingEvent = true;
@@ -3523,19 +3830,23 @@
       const managers = [...document.querySelectorAll('#ef-managers-list input[type=checkbox]:checked')].map(cb => cb.value);
 
       if (editingEventId) {
-        const ev = data.events.find(e => e.id === editingEventId);
+        const ev = cfg.arr().find(e => e.id === editingEventId);
         if (ev) {
           ev.name = name; ev.start = start; ev.end = '';
           ev.location = document.getElementById('ef-location').value;
           ev.status = document.getElementById('ef-status').value;
           ev.notes = document.getElementById('ef-notes').value;
           ev.managers = managers;
-          updateEventInSheets(ev);
+          await sheetsPost('update', cfg.sheet, {
+            ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
+            Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
+            Managers: (ev.managers || []).join(','), Created: ev.created
+          });
         }
-        toast('Event updated ✓', 'success');
+        toast(cfg.label + ' updated ✓', 'success');
       } else {
         const ev = {
-          id: 'EVT' + String(data.nextEventId++).padStart(3, '0'),
+          id: cfg.idPrefix + String(cfg.nextId()).padStart(3, '0'),
           name, start, end: '',
           location: document.getElementById('ef-location').value,
           status: document.getElementById('ef-status').value,
@@ -3543,11 +3854,15 @@
           managers,
           created: new Date().toISOString().split('T')[0],
         };
-        data.events.push(ev);
-        await saveEventToSheets(ev);
-        addHistory(`Event "${name}" created`, 'add');
-        await saveHistoryToSheets(`Event "${name}" created`, 'add');
-        toast('Event created ✓', 'success');
+        cfg.arr().push(ev);
+        await sheetsPost('append', cfg.sheet, {
+          ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
+          Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
+          Managers: (ev.managers || []).join(','), Created: ev.created
+        });
+        addHistory(`${cfg.label} "${name}" created`, 'add');
+        await saveHistoryToSheets(`${cfg.label} "${name}" created`, 'add');
+        toast(cfg.label + ' created ✓', 'success');
       }
       closeModal('event-modal');
       renderAll();
@@ -3567,7 +3882,8 @@
         return;
       }
 
-      const ev = data.events.find(e => e.id === editingEventId);
+      const cfg = schedCfg();
+      const ev = cfg.arr().find(e => e.id === editingEventId);
       if (!ev) return;
 
       // Return any hooked items safely
@@ -3580,13 +3896,17 @@
       });
 
       ev.status = 'Deleted';
-      updateEventInSheets(ev);
+      sheetsPost('update', cfg.sheet, {
+        ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
+        Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
+        Managers: (ev.managers || []).join(','), Created: ev.created
+      });
 
-      const msg = `Event "${ev.name}" DELETED per user correct`;
+      const msg = `${cfg.label} "${ev.name}" DELETED`;
       addHistory(msg, 'delete');
       saveHistoryToSheets(msg, 'delete');
 
-      toast('Event permanently deleted ✓', 'success');
+      toast(cfg.label + ' permanently deleted ✓', 'success');
       closeModal('event-modal');
       renderAll();
       updateNavBadges();
@@ -3664,9 +3984,11 @@
       });
     }
 
-    function openEventDetail(eventId) {
+    function openEventDetail(eventId, kind) {
+      if (kind) scheduleKind = kind;
+      const cfg = schedCfg();
       currentEventDetailId = eventId;
-      const ev = data.events.find(e => e.id === eventId);
+      const ev = cfg.arr().find(e => e.id === eventId);
       if (!ev) return;
 
       const sc = eventStatusColors[ev.status] || eventStatusColors.Upcoming;
@@ -3700,7 +4022,7 @@
   `;
 
       // Buttons
-      document.getElementById('od-assign-btn').textContent = 'Edit Event';
+      document.getElementById('od-assign-btn').textContent = 'Edit ' + cfg.label;
       document.getElementById('od-assign-btn').onclick = () => { closeOverlay(); openEventModal(ev.id); };
       document.getElementById('od-assign-btn').style.display = '';
 
@@ -3719,7 +4041,7 @@
         document.querySelector('.overlay-body > div[style*="margin-top:20px"]').appendChild(closeEvBtn);
       }
       if (ev.status !== 'Closed') {
-        closeEvBtn.textContent = 'Close Event';
+        closeEvBtn.textContent = 'Close ' + cfg.label;
         closeEvBtn.style.display = '';
         closeEvBtn.onclick = () => closeEvent(ev.id);
       } else {
@@ -3730,7 +4052,7 @@
       const totalUtilized = assignedItems.length;
 
       document.getElementById('od-history').innerHTML = `
-        <div class="section-title">Event Tracker</div>
+        <div class="section-title">${cfg.label} Tracker</div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:12px;background:var(--bg3);padding:8px;border-radius:6px;text-align:center;">
           Total Unique Items Processed: <strong style="color:var(--blue);">${totalUtilized}</strong>
         </div>
@@ -3772,10 +4094,11 @@
     function openEventItemAssign(eventId) {
       currentEventDetailId = eventId;
       selectedEAIItemId = null;
-      const ev = data.events.find(e => e.id === eventId);
+      const cfg = schedCfg();
+      const ev = cfg.arr().find(e => e.id === eventId);
       if (!ev) return;
       if (!ev.managers || ev.managers.length === 0) {
-        toast('You must assign at least one manager to the event before adding items', 'error');
+        toast('You must assign at least one manager to the ' + cfg.label.toLowerCase() + ' before adding items', 'error');
         return;
       }
       document.getElementById('eai-event-name').textContent = ev.name;
@@ -3869,24 +4192,29 @@
     }
 
     function closeEvent(eventId) {
-      const ev = data.events.find(e => e.id === eventId);
+      const cfg = schedCfg();
+      const ev = cfg.arr().find(e => e.id === eventId);
       if (!ev) return;
 
       const assignedItems = data.items.filter(i => i.eventId === eventId);
       const pendingItems = assignedItems.filter(i => i.assignedTo !== null || i.status === 'Assigned');
 
       if (pendingItems.length > 0) {
-        toast('Error: You must return all items back to inventory before closing the event.', 'error');
+        toast('Error: You must return all items back to inventory before closing the ' + cfg.label.toLowerCase() + '.', 'error');
         return;
       }
 
       ev.status = 'Closed';
-      updateEventInSheets(ev);
+      sheetsPost('update', cfg.sheet, {
+        ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
+        Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
+        Managers: (ev.managers || []).join(','), Created: ev.created
+      });
 
-      const msg = `Event "${ev.name}" closed`;
+      const msg = `${cfg.label} "${ev.name}" closed`;
       addHistory(msg, 'return');
       saveHistoryToSheets(msg, 'return');
-      toast(`Event closed ✓`, 'success');
+      toast(`${cfg.label} closed ✓`, 'success');
 
       // Refresh overlay
       openEventDetail(eventId);
@@ -3958,20 +4286,23 @@
 
     function populateLocationSelects() {
       const selects = ['f-loc', 'wf-loc', 'filter-loc-items'];
+      const visibleLocs = data.locations.filter(l => orgMatches(l.org));
       selects.forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         const isFilter = id === 'filter-loc-items';
         el.innerHTML = (isFilter ? '<option value="">All locations</option>' : '') +
-          data.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+          visibleLocs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
       });
     }
 
     function updateNavBadges() {
-      document.getElementById('nb-items').textContent = data.items.length;
-      document.getElementById('nb-workers').textContent = data.workers.length;
-      document.getElementById('nb-locs').textContent = data.locations.length;
+      document.getElementById('nb-items').textContent = data.items.filter(i => orgMatches(i.org)).length;
+      document.getElementById('nb-workers').textContent = data.workers.filter(w => orgMatches(w.org)).length;
+      document.getElementById('nb-locs').textContent = data.locations.filter(l => orgMatches(l.org)).length;
       document.getElementById('nb-events').textContent = data.events.filter(e => e.status !== 'Closed' && e.status !== 'Deleted').length;
+      const nbRoutes = document.getElementById('nb-routes');
+      if (nbRoutes) nbRoutes.textContent = data.routes.filter(r => r.status !== 'Closed' && r.status !== 'Deleted').length;
     }
 
     function handleSearch(val) {
