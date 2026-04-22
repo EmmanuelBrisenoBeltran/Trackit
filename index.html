@@ -3927,7 +3927,7 @@
       document.getElementById('nb-items').textContent = data.items.length;
       document.getElementById('nb-workers').textContent = data.workers.length;
       document.getElementById('nb-locs').textContent = data.locations.length;
-      document.getElementById('nb-events').textContent = data.events.filter(e => e.status !== 'Closed').length;
+      document.getElementById('nb-events').textContent = data.events.filter(e => e.status !== 'Closed' && e.status !== 'Deleted').length;
     }
 
     function handleSearch(val) {
