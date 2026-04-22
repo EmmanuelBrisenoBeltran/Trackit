@@ -2134,7 +2134,8 @@
           };
         });
         if (history.length) data.history = history.map(r => ({
-          action: r.Action, type: r.Type, time: r.Timestamp
+          action: r.Action, type: r.Type, time: r.Timestamp,
+          org: (r.Org || 'flex').toLowerCase(),
         }));
         if (events.length) data.events = events.map(r => ({
           id: r.ID, name: r.Name, start: r.Start, end: r.End,
@@ -2263,11 +2264,22 @@
       });
     }
 
+    function currentHistoryOrg() {
+      if (!currentUser) return 'flex';
+      if (currentUser.role !== 'admin') return currentUser.org;
+      // Admin: derive from schedule kind (routes=flex, events=flux); fallback by current view
+      if (currentView === 'routes' || scheduleKind === 'route') return 'flex';
+      if (currentView === 'events' || scheduleKind === 'event') return 'flux';
+      return 'all';
+    }
+
     async function saveHistoryToSheets(action, type) {
       const now = new Date();
       const timestamp = now.toISOString().split('T')[0] + ' ' + now.toTimeString().slice(0, 5);
       await sheetsPost('append', 'History', {
-        ID: 'H' + Date.now(), Action: action, Type: type, Timestamp: timestamp
+        ID: 'H' + Date.now(), Action: action, Type: type,
+        Org: currentHistoryOrg(),
+        Timestamp: timestamp
       });
     }
 
@@ -2501,7 +2513,7 @@
   `).join('');
 
       const hList = document.getElementById('dash-history');
-      hList.innerHTML = data.history.slice(-5).reverse().map(h => `
+      hList.innerHTML = data.history.filter(h => orgMatches(h.org)).slice(-5).reverse().map(h => `
     <div class="history-item">
       <div class="history-dot" style="background:${h.type === 'assign' ? 'var(--blue)' : h.type === 'add' ? 'var(--green)' : 'var(--orange)'}"></div>
       <div class="history-body">
@@ -2704,7 +2716,7 @@
     function renderHistory() {
       const list = document.getElementById('history-list');
       const hDash = document.getElementById('dash-history');
-      const items = [...data.history].reverse();
+      const items = [...data.history].filter(h => orgMatches(h.org)).reverse();
       const html = items.map(h => `
     <div class="history-item">
       <div class="history-dot" style="background:${h.type === 'assign' ? 'var(--blue)' : h.type === 'unassign' ? 'var(--orange)' : h.type === 'add' ? 'var(--green)' : 'var(--text3)'}"></div>
@@ -4273,7 +4285,7 @@
     function addHistory(action, type) {
       const now = new Date();
       const time = now.toISOString().split('T')[0] + ' ' + now.toTimeString().slice(0, 5);
-      data.history.push({ action, time, type });
+      data.history.push({ action, time, type, org: currentHistoryOrg() });
     }
 
     function toast(msg, type = 'info') {
