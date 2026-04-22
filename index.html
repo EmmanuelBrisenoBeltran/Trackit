@@ -3292,24 +3292,30 @@
     }
 
     async function printLabel(code, name) {
-      const dataUrl = await generateQRDataUrl(code, 220);
+      const dataUrl = await generateQRDataUrl(code, 260);
       const win = window.open('', '_blank', 'width=1000,height=800');
       win.document.write(`<!DOCTYPE html><html><head><title>Label</title>
     <style>
       @page { size: 50mm 30mm; margin: 0; padding: 0; }
-      html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
-      .label { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 2mm; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1.5mm; text-align: center; border: none; outline: none; }
-      .qr { flex-shrink: 0; }
-      .qr img { width: 22mm; height: 22mm; display: block; image-rendering: pixelated; }
-      .text { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; overflow:hidden; }
-      h2 { font-size: 11px; margin: 0 0 2px 0; text-align: center; white-space: normal; overflow: hidden; width: 100%; max-width: 22mm; font-weight: bold; line-height: 1.15; word-break:break-word; }
-      p { font-size: 9px; margin: 0; text-align: center; font-family: monospace; font-weight: bold; word-break:break-all; }
+      html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; border: none; }
+      .label { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 0.8mm; text-align: center; }
+      h2 { font-size: 10px; margin: 0 0 0.5mm 0; text-align: center; font-weight: bold; line-height: 1.1; max-width: 48mm; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      img.qr { width: 20mm; height: 20mm; display: block; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; }
+      p { font-size: 8px; margin: 0.5mm 0 0 0; text-align: center; font-family: monospace; font-weight: bold; letter-spacing: 0.2px; }
     </style></head>
     <body><div class="label">
-      <div class="qr"><img src="${dataUrl}" alt="QR"></div>
-      <div class="text"><h2>${name}</h2><p>${code}</p></div>
+      <h2>${name}</h2>
+      <img class="qr" src="${dataUrl}" alt="QR">
+      <p>${code}</p>
     </div>
-    <script>window.onload=()=>setTimeout(()=>{window.print();window.close();},300)<\/script>
+    <script>
+      (function(){
+        var img = document.querySelector('img.qr');
+        function go(){ setTimeout(function(){ window.print(); window.close(); }, 120); }
+        if (img.complete && img.naturalWidth > 0) go();
+        else { img.onload = go; img.onerror = go; }
+      })();
+    <\/script>
     </body></html>`);
       win.document.close();
     }
@@ -3763,28 +3769,32 @@
       const w = data.workers.find(x => x.id === workerId);
       if (!w) return;
       const code = w.barcode || ('WRK-' + w.id);
-      const dataUrl = await generateQRDataUrl(code, 220);
+      const dataUrl = await generateQRDataUrl(code, 260);
       const win = window.open('', '_blank', 'width=1000,height=800');
       win.document.write(`<!DOCTYPE html><html><head><title>Worker Badge</title>
     <style>
       @page { size: 50mm 30mm; margin: 0; padding: 0; }
-      html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; border: none; }
-      .badge { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 2mm; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 1.5mm; text-align: center; border: none; outline: none; }
-      .qr img { width: 22mm; height: 22mm; display:block; image-rendering: pixelated; }
-      .text { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; overflow:hidden; }
-      h2 { font-size: 11px; margin: 0 0 1px 0; text-align: center; white-space: normal; overflow: hidden; width: 100%; max-width: 22mm; font-weight: bold; line-height: 1.15; word-break:break-word; }
-      .role { font-size: 9px; color: #333; margin: 0; text-align: center; white-space: nowrap; overflow: hidden; width: 100%; max-width: 22mm; text-overflow: ellipsis; }
-      p { font-size: 8px; margin: 1px 0 0 0; text-align: center; font-family: monospace; font-weight: bold; word-break:break-all; }
+      html, body { margin: 0; padding: 0; width: 50mm; height: 30mm; overflow: hidden; background: #fff; color: #000; border: none; }
+      .badge { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 50mm; height: 30mm; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; padding: 0.8mm; text-align: center; }
+      h2 { font-size: 10px; margin: 0 0 0.3mm 0; text-align: center; font-weight: bold; line-height: 1.1; max-width: 48mm; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .role { font-size: 8px; color: #333; margin: 0 0 0.5mm 0; line-height: 1.1; max-width: 48mm; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      img.qr { width: 18mm; height: 18mm; display: block; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; }
+      p { font-size: 8px; margin: 0.5mm 0 0 0; font-family: monospace; font-weight: bold; letter-spacing: 0.2px; }
     </style></head>
     <body><div class="badge">
-      <div class="qr"><img src="${dataUrl}" alt="QR"></div>
-      <div class="text">
-        <h2>${w.fname} ${w.lname}</h2>
-        <div class="role">${w.role || ''} ${w.eid ? '· ' + w.eid : ''}</div>
-        <p>${code}</p>
-      </div>
+      <h2>${w.fname} ${w.lname}</h2>
+      <div class="role">${w.role || ''} ${w.eid ? '· ' + w.eid : ''}</div>
+      <img class="qr" src="${dataUrl}" alt="QR">
+      <p>${code}</p>
     </div>
-    <script>window.onload=()=>setTimeout(()=>{window.print();window.close();},300)<\/script>
+    <script>
+      (function(){
+        var img = document.querySelector('img.qr');
+        function go(){ setTimeout(function(){ window.print(); window.close(); }, 120); }
+        if (img.complete && img.naturalWidth > 0) go();
+        else { img.onload = go; img.onerror = go; }
+      })();
+    <\/script>
     </body></html>`);
       win.document.close();
     }
