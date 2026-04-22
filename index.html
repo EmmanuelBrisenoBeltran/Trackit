@@ -1865,6 +1865,23 @@
     </div>
   </div>
 
+  <!-- CONFIRM DELETE MODAL -->
+  <div class="modal-backdrop" id="confirm-delete-modal" style="display:none;">
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-header">
+        <span class="modal-title" style="color:var(--red);">Confirmar eliminación</span>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-delete-msg" style="font-size:14px;line-height:1.5;margin-bottom:8px;"></p>
+        <p style="font-size:12px;color:var(--text3);">Esta acción no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cancelDelete()">Cancelar</button>
+        <button class="btn btn-danger" style="background:var(--red);color:#fff;" onclick="confirmDeleteAction()">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST -->
   <div class="toast-container" id="toasts"></div>
 
@@ -3517,66 +3534,76 @@
       updateNavBadges();
     }
 
-    async function deleteItem(itemId) {
-      if (!confirm('¿Estás seguro de que quieres eliminar este ítem permanentemente?')) return;
-      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
-      if (confirmText !== 'ELIMINAR') return;
-      
+    let _pendingDeleteFn = null;
+
+    function confirmDelete(message, onConfirm) {
+      _pendingDeleteFn = onConfirm;
+      document.getElementById('confirm-delete-msg').textContent = message;
+      document.getElementById('confirm-delete-modal').style.display = 'flex';
+    }
+
+    function confirmDeleteAction() {
+      document.getElementById('confirm-delete-modal').style.display = 'none';
+      if (_pendingDeleteFn) { const fn = _pendingDeleteFn; _pendingDeleteFn = null; fn(); }
+    }
+
+    function cancelDelete() {
+      document.getElementById('confirm-delete-modal').style.display = 'none';
+      _pendingDeleteFn = null;
+    }
+
+    function deleteItem(itemId) {
       const item = data.items.find(i => i.id === itemId);
       if (!item) return;
-
-      data.items = data.items.filter(i => i.id !== itemId);
-      await sheetsPost('delete', 'Items', { ID: itemId });
-      const msg = `Ítem "${item.name}" ELIMINADO`;
-      addHistory(msg, 'delete');
-      saveHistoryToSheets(msg, 'delete');
-      toast('Ítem eliminado permanentemente ✓', 'success');
-      closeOverlay();
-      renderAll();
+      confirmDelete(`¿Eliminar el ítem "${item.name}"?`, async () => {
+        data.items = data.items.filter(i => i.id !== itemId);
+        closeOverlay();
+        renderAll();
+        updateNavBadges();
+        await sheetsPost('delete', 'Items', { ID: itemId });
+        const msg = `Ítem "${item.name}" ELIMINADO`;
+        addHistory(msg, 'delete');
+        await saveHistoryToSheets(msg, 'delete');
+        toast('Ítem eliminado ✓', 'success');
+      });
     }
 
-    async function deleteWorker(workerId) {
-      if (!confirm('¿Estás seguro de que quieres eliminar este empleado / worker?')) return;
-      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
-      if (confirmText !== 'ELIMINAR') return;
-      
+    function deleteWorker(workerId) {
       const worker = data.workers.find(w => w.id === workerId);
       if (!worker) return;
-
-      // Liberar todos los ítems asignados a este empleado
-      const assigned = data.items.filter(i => i.assignedTo === workerId);
-      for (const item of assigned) {
-        item.assignedTo = null;
-        item.status = 'Available';
-        await updateItemInSheets(item);
-      }
-
-      data.workers = data.workers.filter(w => w.id !== workerId);
-      await sheetsPost('delete', 'Workers', { ID: workerId });
-      const msg = `Empleado "${worker.fname} ${worker.lname}" ELIMINADO`;
-      addHistory(msg, 'delete');
-      saveHistoryToSheets(msg, 'delete');
-      toast('Empleado eliminado permanentemente ✓', 'success');
-      closeOverlay();
-      renderAll();
+      confirmDelete(`¿Eliminar a ${worker.fname} ${worker.lname}?`, async () => {
+        const assigned = data.items.filter(i => i.assignedTo === workerId);
+        for (const item of assigned) {
+          item.assignedTo = null;
+          item.status = 'Available';
+          await updateItemInSheets(item);
+        }
+        data.workers = data.workers.filter(w => w.id !== workerId);
+        closeOverlay();
+        renderAll();
+        updateNavBadges();
+        await sheetsPost('delete', 'Workers', { ID: workerId });
+        const msg = `Empleado "${worker.fname} ${worker.lname}" ELIMINADO`;
+        addHistory(msg, 'delete');
+        await saveHistoryToSheets(msg, 'delete');
+        toast('Empleado eliminado ✓', 'success');
+      });
     }
 
-    async function deleteLocation(locId) {
-      if (!confirm('¿Estás seguro de que quieres eliminar este location / lugar?')) return;
-      const confirmText = prompt('Escribe "ELIMINAR" para confirmar el borrado:');
-      if (confirmText !== 'ELIMINAR') return;
-      
+    function deleteLocation(locId) {
       const loc = data.locations.find(l => l.id === locId);
       if (!loc) return;
-
-      data.locations = data.locations.filter(l => l.id !== locId);
-      await sheetsPost('delete', 'Locations', { ID: locId });
-      const msg = `Location "${loc.name}" ELIMINADO`;
-      addHistory(msg, 'delete');
-      saveHistoryToSheets(msg, 'delete');
-      toast('Location eliminado permanentemente ✓', 'success');
-      closeOverlay();
-      renderAll();
+      confirmDelete(`¿Eliminar la ubicación "${loc.name}"?`, async () => {
+        data.locations = data.locations.filter(l => l.id !== locId);
+        closeOverlay();
+        renderAll();
+        updateNavBadges();
+        await sheetsPost('delete', 'Locations', { ID: locId });
+        const msg = `Ubicación "${loc.name}" ELIMINADA`;
+        addHistory(msg, 'delete');
+        await saveHistoryToSheets(msg, 'delete');
+        toast('Ubicación eliminada ✓', 'success');
+      });
     }
 
     function openEventDetail(eventId) {
