@@ -1403,6 +1403,7 @@
               <option value="Upcoming">Upcoming</option>
               <option value="Active">Active Only</option>
               <option value="Closed">Closed Only</option>
+              <option value="Archived">Archived Only</option>
             </select>
             <div style="flex:1;"></div>
             <button class="btn btn-primary btn-sm" onclick="openEventModal()">+ New Event</button>
@@ -1420,6 +1421,7 @@
               <option value="Upcoming">Upcoming</option>
               <option value="Active">Active Only</option>
               <option value="Closed">Closed Only</option>
+              <option value="Archived">Archived Only</option>
             </select>
             <div style="flex:1;"></div>
             <button class="btn btn-primary btn-sm" onclick="openRouteModal()">+ New Route</button>
@@ -3824,11 +3826,13 @@
     let editingEventId = null;
     let selectedEAIItemId = null;
     let currentEventDetailId = null;
+    let currentEventDetailKind = null;
 
     const eventStatusColors = {
       Upcoming: { bg: 'var(--blue-bg)', color: 'var(--blue)' },
       Active: { bg: 'var(--green-bg)', color: 'var(--green)' },
       Closed: { bg: 'var(--bg4)', color: 'var(--text3)' },
+      Archived: { bg: 'var(--bg2)', color: 'var(--text3)' },
     };
 
     function renderRoutes() { scheduleKind = 'route'; renderEvents(); scheduleKind = 'event'; }
@@ -3844,8 +3848,9 @@
         if (e.status === 'Deleted') return false; // Always hide
 
         if (filter === 'archive') {
-          return true; // Show all past events, including Closed
+          return true; // Show all past events, including Closed and Archived
         } else if (filter === 'recent') {
+          if (e.status === 'Archived') return false; // Hide archived from recent
           if (e.status === 'Closed' && e.start) {
             const evDate = new Date(e.start);
             const daysOld = (now - evDate) / (1000 * 60 * 60 * 24);
@@ -3873,6 +3878,15 @@
         const managers = (ev.managers || []).map(id => data.workers.find(w => w.id === id)).filter(Boolean);
         const assignedItems = data.items.filter(i => i.eventId === ev.id);
         const totalUnits = assignedItems.reduce((s, i) => s + (i.isBulk ? (i.quantity || 1) : 1), 0);
+        
+        const workerIds = [...new Set(assignedItems.filter(i => i.assignedTo).map(i => i.assignedTo))];
+        const assignedWorkers = workerIds.map(id => data.workers.find(w => w.id === id)).filter(Boolean).filter(w => !(ev.managers || []).includes(w.id));
+        
+        const allPersonnel = [
+          ...managers.map(w => ({ ...w, _isManager: true })),
+          ...assignedWorkers.map(w => ({ ...w, _isManager: false }))
+        ];
+
         return `<div class="location-card" onclick="openEventDetail('${ev.id}', '${kindAttr}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
         <div style="font-size:15px;font-weight:600;flex:1;margin-right:8px;">${ev.name}</div>
@@ -3892,13 +3906,16 @@
           <div class="loc-stat-lab">Units</div>
         </div>
         <div class="loc-stat">
-          <div class="loc-stat-val">${managers.length}</div>
-          <div class="loc-stat-lab">Managers</div>
+          <div class="loc-stat-val">${allPersonnel.length}</div>
+          <div class="loc-stat-lab">Staff</div>
         </div>
       </div>
-      ${managers.length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
-        ${managers.slice(0, 3).map(w => `<span style="font-size:11px;background:var(--bg3);padding:2px 8px;border-radius:20px;color:var(--text2);">${w.fname} ${w.lname}</span>`).join('')}
-        ${managers.length > 3 ? `<span style="font-size:11px;color:var(--text3);">+${managers.length - 3} more</span>` : ''}
+      ${allPersonnel.length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+        ${allPersonnel.slice(0, 4).map(w => w._isManager ? 
+          `<span style="font-size:11px;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:500;" title="Manager">👑 ${w.fname} ${w.lname}</span>` : 
+          `<span style="font-size:11px;background:var(--bg3);color:var(--text2);padding:2px 8px;border-radius:20px;" title="Worker">👷 ${w.fname} ${w.lname}</span>`
+        ).join('')}
+        ${allPersonnel.length > 4 ? `<span style="font-size:11px;color:var(--text3);padding:4px 0;">+${allPersonnel.length - 4} more</span>` : ''}
       </div>` : ''}
     </div>`;
       }).join('');
@@ -3972,11 +3989,59 @@
       if (editingEventId) {
         const ev = cfg.arr().find(e => e.id === editingEventId);
         if (ev) {
+          const oldName = ev.name;
+          const oldStart = ev.start;
+          const oldLocation = ev.location;
+          const oldStatus = ev.status;
+          const oldNotes = ev.notes;
+          const oldManagersStr = (ev.managers || []).join(',');
+          const newManagersStr = managers.join(',');
+
           ev.name = name; ev.start = start; ev.end = '';
           ev.location = document.getElementById('ef-location').value;
           ev.status = document.getElementById('ef-status').value;
           ev.notes = document.getElementById('ef-notes').value;
           ev.managers = managers;
+
+          let historyPromises = [];
+          if (oldManagersStr !== newManagersStr) {
+             const mgrNames = managers.map(id => {
+                const w = data.workers.find(wk => wk.id === id);
+                return w ? `${w.fname} ${w.lname}` : id;
+             }).join(', ') || 'None';
+             const msg = `Managers for ${cfg.label} "${ev.name}" updated to: ${mgrNames}`;
+             addHistory(msg, 'edit');
+             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+          }
+          if (oldStart !== ev.start) {
+             const msg = `Dates for ${cfg.label} "${ev.name}" updated to: ${ev.start}`;
+             addHistory(msg, 'edit');
+             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+          }
+          if (oldLocation !== ev.location) {
+             const locName = (data.locations.find(l => l.id === ev.location)?.name) || ev.location || 'None';
+             const msg = `Location for ${cfg.label} "${ev.name}" updated to: ${locName}`;
+             addHistory(msg, 'edit');
+             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+          }
+          if (oldStatus !== ev.status) {
+             const msg = `Status for ${cfg.label} "${ev.name}" updated to: ${ev.status}`;
+             addHistory(msg, 'edit');
+             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+          }
+          if (oldNotes !== ev.notes) {
+             const msg = `Notes for ${cfg.label} "${ev.name}" updated`;
+             addHistory(msg, 'edit');
+             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+          }
+          if (oldName !== ev.name) {
+             const msg = `Name for ${cfg.label} "${oldName}" updated to "${ev.name}"`;
+             addHistory(msg, 'edit');
+             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+          }
+
+          if (historyPromises.length > 0) await Promise.all(historyPromises);
+
           await sheetsPost('update', cfg.sheet, {
             ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
             Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
@@ -4125,7 +4190,12 @@
     }
 
     function openEventDetail(eventId, kind) {
-      if (kind) scheduleKind = kind;
+      if (kind) {
+        scheduleKind = kind;
+        currentEventDetailKind = kind;
+      } else if (currentEventDetailKind) {
+        scheduleKind = currentEventDetailKind;
+      }
       const cfg = schedCfg();
       currentEventDetailId = eventId;
       const ev = cfg.arr().find(e => e.id === eventId);
@@ -4180,13 +4250,45 @@
         closeEvBtn.className = 'btn btn-danger btn-sm';
         document.querySelector('.overlay-body > div[style*="margin-top:20px"]').appendChild(closeEvBtn);
       }
-      if (ev.status !== 'Closed') {
+      if (ev.status !== 'Closed' && ev.status !== 'Archived') {
         closeEvBtn.textContent = 'Close ' + cfg.label;
         closeEvBtn.style.display = '';
         closeEvBtn.onclick = () => closeEvent(ev.id);
       } else {
         closeEvBtn.style.display = 'none';
       }
+
+      // Archive event button
+      let archiveEvBtn = document.getElementById('archive-event-btn');
+      if (!archiveEvBtn) {
+        archiveEvBtn = document.createElement('button');
+        archiveEvBtn.id = 'archive-event-btn';
+        archiveEvBtn.className = 'btn btn-ghost btn-sm';
+        archiveEvBtn.style.color = 'var(--text2)';
+        archiveEvBtn.style.marginLeft = '8px';
+        document.querySelector('.overlay-body > div[style*="margin-top:20px"]').appendChild(archiveEvBtn);
+      }
+      if (ev.status === 'Closed') {
+        archiveEvBtn.textContent = 'Archive ' + cfg.label;
+        archiveEvBtn.style.display = '';
+        archiveEvBtn.onclick = () => archiveEvent(ev.id);
+      } else {
+        archiveEvBtn.style.display = 'none';
+      }
+
+      // Delete event button
+      let delEvBtn = document.getElementById('delete-event-btn');
+      if (!delEvBtn) {
+        delEvBtn = document.createElement('button');
+        delEvBtn.id = 'delete-event-btn';
+        delEvBtn.className = 'btn btn-ghost btn-sm';
+        delEvBtn.style.color = 'var(--red)';
+        delEvBtn.style.marginLeft = '8px';
+        document.querySelector('.overlay-body > div[style*="margin-top:20px"]').appendChild(delEvBtn);
+      }
+      delEvBtn.textContent = 'Delete ' + cfg.label;
+      delEvBtn.style.display = '';
+      delEvBtn.onclick = () => deleteEvent(ev.id);
 
       const evHistory = data.history.filter(h => h.action.includes('"' + ev.name + '"'));
       const totalUtilized = assignedItems.length;
@@ -4270,6 +4372,7 @@
         </div>
         <div class="mono" style="font-size:10px;">${item.barcode}</div>
       </div>
+      ${item.isBulk ? `<div style="display:flex;flex-direction:column;align-items:flex-end;" onclick="event.stopPropagation()"><span style="font-size:10px;color:var(--text3);margin-bottom:2px;">Qty to Assign</span><input type="number" id="eai-qty-${item.id}" class="form-input" style="width:60px;padding:4px;font-size:12px;text-align:center;" min="1" max="${item.quantity}" value="${item.quantity}" onclick="event.stopPropagation()"></div>` : ''}
     </div>`;
       }).join('');
     }
@@ -4309,11 +4412,43 @@
       for (const cb of checkboxes) {
         const item = data.items.find(i => i.id === cb.value);
         if (item) {
-          item.eventId = ev.id;
-          item.status = 'Assigned';
-          await updateItemInSheets(item);
-          count++;
-          addedNames.push(item.name);
+          if (item.isBulk) {
+            const qtyInput = document.getElementById(`eai-qty-${item.id}`);
+            const qtyToAssign = qtyInput ? parseInt(qtyInput.value) : item.quantity;
+            if (isNaN(qtyToAssign) || qtyToAssign <= 0 || qtyToAssign > item.quantity) {
+               toast(`Invalid quantity for ${item.name}`, 'error');
+               continue;
+            }
+            if (qtyToAssign < item.quantity) {
+               // Partially assign
+               item.quantity -= qtyToAssign;
+               await updateItemInSheets(item);
+               
+               const childId = 'ITM' + String(data.nextItemId++).padStart(3, '0');
+               const childItem = {
+                 ...item, id: childId, quantity: qtyToAssign,
+                 eventId: ev.id, status: 'Assigned', created: new Date().toISOString().split('T')[0]
+               };
+               data.items.push(childItem);
+               await saveItemToSheets(childItem);
+               count++;
+               addedNames.push(item.name);
+            } else {
+               // Assign all
+               item.eventId = ev.id;
+               item.status = 'Assigned';
+               await updateItemInSheets(item);
+               count++;
+               addedNames.push(item.name);
+            }
+          } else {
+            // Non-bulk item
+            item.eventId = ev.id;
+            item.status = 'Assigned';
+            await updateItemInSheets(item);
+            count++;
+            addedNames.push(item.name);
+          }
         }
       }
 
@@ -4340,9 +4475,25 @@
     function removeItemFromEvent(itemId) {
       const item = data.items.find(i => i.id === itemId);
       if (!item) return;
-      const evName = data.events.find(e => e.id === item.eventId)?.name || '';
-      item.eventId = null;
-      updateItemInSheets(item);
+      const evName = data.events.find(e => e.id === item.eventId)?.name || data.routes.find(r => r.id === item.eventId)?.name || '';
+      
+      if (item.isBulk && !item.assignedTo) {
+          // If it's a bulk item child not held by any worker, return it to the master item.
+          const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
+          if (masterItem) {
+              masterItem.quantity += item.quantity;
+              updateItemInSheets(masterItem);
+          }
+          item.eventId = null;
+          item.status = 'Archived';
+          item.quantity = 0;
+          updateItemInSheets(item);
+      } else {
+          item.eventId = null;
+          if (!item.assignedTo) item.status = 'Available';
+          updateItemInSheets(item);
+      }
+
       const msg = `${item.name} removed from event "${evName}"`;
       addHistory(msg, 'unassign');
       saveHistoryToSheets(msg, 'unassign');
@@ -4379,6 +4530,60 @@
       toast(`${cfg.label} closed ✓`, 'success');
 
       // Refresh overlay
+      openEventDetail(eventId);
+      renderAll();
+      updateNavBadges();
+    }
+
+    function deleteEvent(eventId) {
+      const cfg = schedCfg();
+      const ev = cfg.arr().find(e => e.id === eventId);
+      if (!ev) return;
+
+      const assignedItems = data.items.filter(i => i.eventId === eventId);
+      if (assignedItems.length > 0) {
+        toast('Error: You must return all items back to inventory before deleting the ' + cfg.label.toLowerCase() + '.', 'error');
+        return;
+      }
+
+      if (!confirm(`Are you sure you want to permanently delete the ${cfg.label.toLowerCase()} "${ev.name}"?`)) return;
+
+      ev.status = 'Deleted'; 
+      sheetsPost('delete', cfg.sheet, { ID: ev.id });
+
+      const msg = `${cfg.label} "${ev.name}" DELETED`;
+      addHistory(msg, 'delete');
+      saveHistoryToSheets(msg, 'delete');
+      toast(`${cfg.label} deleted ✓`, 'success');
+
+      closeOverlay();
+      renderAll();
+      updateNavBadges();
+    }
+
+    function archiveEvent(eventId) {
+      const cfg = schedCfg();
+      const ev = cfg.arr().find(e => e.id === eventId);
+      if (!ev) return;
+
+      const assignedItems = data.items.filter(i => i.eventId === eventId);
+      if (assignedItems.length > 0) {
+        toast('Error: You must return all items back to inventory before archiving the ' + cfg.label.toLowerCase() + '.', 'error');
+        return;
+      }
+
+      ev.status = 'Archived';
+      sheetsPost('update', cfg.sheet, {
+        ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
+        Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
+        Managers: (ev.managers || []).join(','), Created: ev.created
+      });
+
+      const msg = `${cfg.label} "${ev.name}" archived`;
+      addHistory(msg, 'unassign');
+      saveHistoryToSheets(msg, 'unassign');
+      toast(`${cfg.label} archived ✓`, 'success');
+
       openEventDetail(eventId);
       renderAll();
       updateNavBadges();
