@@ -1753,6 +1753,12 @@
               style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);">
             </div>
           </div>
+          <div class="form-group full">
+            <label class="form-label">Assign Techs / Personnel</label>
+            <div id="ef-techs-list"
+              style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);">
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
@@ -3952,13 +3958,27 @@
 
       // Populate managers checkboxes — only workers from the same org
       const list = document.getElementById('ef-managers-list');
+      const techList = document.getElementById('ef-techs-list');
       const currentManagers = editingEventId ? (cfg.arr().find(e => e.id === editingEventId)?.managers || []) : [];
+      const currentTechs = editingEventId ? (cfg.arr().find(e => e.id === editingEventId)?.techs || []) : [];
       const visibleWorkers = data.workers.filter(w => orgMatches(w.org));
+      
       list.innerHTML = visibleWorkers.map(w => {
         const loc = data.locations.find(l => l.id === w.location);
         return `<div class="assign-item">
       <input type="checkbox" id="mgr-${w.id}" value="${w.id}" ${currentManagers.includes(w.id) ? 'checked' : ''}>
       <label for="mgr-${w.id}" style="flex:1;cursor:pointer;">
+        <div style="font-size:13px;font-weight:500;">${w.fname} ${w.lname}</div>
+        <div style="font-size:11px;color:var(--text3);">${w.role || '—'} · ${loc ? loc.name : '—'}</div>
+      </label>
+    </div>`;
+      }).join('');
+
+      techList.innerHTML = visibleWorkers.map(w => {
+        const loc = data.locations.find(l => l.id === w.location);
+        return `<div class="assign-item">
+      <input type="checkbox" id="tch-${w.id}" value="${w.id}" ${currentTechs.includes(w.id) ? 'checked' : ''}>
+      <label for="tch-${w.id}" style="flex:1;cursor:pointer;">
         <div style="font-size:13px;font-weight:500;">${w.fname} ${w.lname}</div>
         <div style="font-size:11px;color:var(--text3);">${w.role || '—'} · ${loc ? loc.name : '—'}</div>
       </label>
@@ -3983,6 +4003,7 @@
       try {
 
         const managers = [...document.querySelectorAll('#ef-managers-list input[type=checkbox]:checked')].map(cb => cb.value);
+        const techs = [...document.querySelectorAll('#ef-techs-list input[type=checkbox]:checked')].map(cb => cb.value);
 
         if (editingEventId) {
           const ev = cfg.arr().find(e => e.id === editingEventId);
@@ -3993,13 +4014,16 @@
             const oldStatus = ev.status;
             const oldNotes = ev.notes;
             const oldManagersStr = (ev.managers || []).join(',');
+            const oldTechsStr = (ev.techs || []).join(',');
             const newManagersStr = managers.join(',');
+            const newTechsStr = techs.join(',');
 
             ev.name = name; ev.start = start; ev.end = '';
             ev.location = document.getElementById('ef-location').value;
             ev.status = document.getElementById('ef-status').value;
             ev.notes = document.getElementById('ef-notes').value;
             ev.managers = managers;
+            ev.techs = techs;
 
             let historyPromises = [];
             if (oldManagersStr !== newManagersStr) {
@@ -4008,6 +4032,15 @@
                 return w ? `${w.fname} ${w.lname}` : id;
               }).join(', ') || 'None';
               const msg = `Managers for ${cfg.label} "${ev.name}" updated to: ${mgrNames}`;
+              addHistory(msg, 'edit');
+              historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+            }
+            if (oldTechsStr !== newTechsStr) {
+              const techNames = techs.map(id => {
+                const w = data.workers.find(wk => wk.id === id);
+                return w ? `${w.fname} ${w.lname}` : id;
+              }).join(', ') || 'None';
+              const msg = `Techs for ${cfg.label} "${ev.name}" updated to: ${techNames}`;
               addHistory(msg, 'edit');
               historyPromises.push(saveHistoryToSheets(msg, 'edit'));
             }
@@ -4043,7 +4076,9 @@
             await sheetsPost('update', cfg.sheet, {
               ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
               Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
-              Managers: (ev.managers || []).join(','), Created: ev.created
+              Managers: (ev.managers || []).join(','),
+              Techs: (ev.techs || []).join(','),
+              Created: ev.created
             });
           }
           toast(cfg.label + ' updated ✓', 'success');
@@ -4055,13 +4090,16 @@
             status: document.getElementById('ef-status').value,
             notes: document.getElementById('ef-notes').value,
             managers,
+            techs,
             created: new Date().toISOString().split('T')[0],
           };
           cfg.arr().push(ev);
           await sheetsPost('append', cfg.sheet, {
             ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
             Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
-            Managers: (ev.managers || []).join(','), Created: ev.created
+            Managers: (ev.managers || []).join(','),
+            Techs: (ev.techs || []).join(','),
+            Created: ev.created
           });
           addHistory(`${cfg.label} "${name}" created`, 'add');
           await saveHistoryToSheets(`${cfg.label} "${name}" created`, 'add');
@@ -4219,12 +4257,18 @@
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
       ${managers.length ? managers.map(w => `<span style="background:var(--bg3);padding:4px 10px;border-radius:20px;font-size:12px;">${w.fname} ${w.lname}</span>`).join('') : '<span style="color:var(--text3);font-size:12px;">None assigned</span>'}
     </div>
+
+    <div class="section-title">Techs / Personnel Inventory</div>
+    <div style="margin-bottom:16px;">
+      ${renderEventTechs(ev, assignedItems)}
+    </div>
+
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <div class="section-title" style="margin-bottom:0;">Items Assigned</div>
-      ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" onclick="openMassAssignModal('${ev.id}', scheduleKind)">Quick Assign ⚡</button>` : ''}
+      <div class="section-title" style="margin-bottom:0;">Route Inventory (Bulk / General)</div>
+      ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" onclick="openMassAssignModal('${ev.id}', scheduleKind)">Assign Bulk ⚡</button>` : ''}
     </div>
     <div id="event-detail-items">
-      ${renderEventItems(ev, assignedItems)}
+      ${renderEventItems(ev, assignedItems.filter(i => !i.assignedTo))}
     </div>
     ${ev.notes ? `<div style="margin-top:12px;font-size:12px;color:var(--text3);">${ev.notes}</div>` : ''}
   `;
@@ -4309,9 +4353,37 @@
       document.getElementById('item-detail').classList.add('open');
     }
 
-    function renderEventItems(ev, assignedItems) {
-      if (!assignedItems.length) return '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No items assigned yet</div>';
-      return assignedItems.map(item => {
+    function renderEventTechs(ev, assignedItems) {
+      const techs = (ev.techs || []).map(id => data.workers.find(w => w.id === id)).filter(Boolean);
+      if (!techs.length) return '<div style="color:var(--text3);font-size:12px;padding:8px 0;">No techs assigned to this route</div>';
+      
+      return techs.map(w => {
+        const workerItems = assignedItems.filter(i => i.assignedTo === w.id);
+        return `
+        <div style="border:1px solid var(--border);border-radius:6px;margin-bottom:8px;padding:8px;background:var(--bg2);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">
+              <div style="width:20px;height:20px;border-radius:50%;background:var(--blue-bg);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:10px;">${w.fname[0]}${w.lname[0]}</div>
+              ${w.fname} ${w.lname}
+            </div>
+            ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;" onclick="openMassAssignModal('${w.id}', 'tech_in_route', '${ev.id}')">Assign Items ⚡</button>` : ''}
+          </div>
+          <div style="padding-left:26px;">
+            ${workerItems.length ? workerItems.map(item => `
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:4px;color:var(--text2);background:var(--bg1);padding:4px 8px;border-radius:4px;">
+                <span>${item.name} ${item.isBulk ? `<span style="color:var(--blue);">(${item.quantity} units)</span>` : ''}</span>
+                ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" style="padding:0;color:var(--orange);" onclick="removeItemFromEvent('${item.id}')">Return</button>` : ''}
+              </div>
+            `).join('') : '<div style="font-size:11px;color:var(--text3);">No items assigned</div>'}
+          </div>
+        </div>
+        `;
+      }).join('');
+    }
+
+    function renderEventItems(ev, routeBulkItems) {
+      if (!routeBulkItems.length) return '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No bulk items assigned directly to route</div>';
+      return routeBulkItems.map(item => {
         const w = item.assignedTo ? data.workers.find(x => x.id === item.assignedTo) : null;
         const originLoc = data.locations.find(l => l.id === item.location);
         return `<div class="history-item" style="align-items:flex-start;">
@@ -4322,10 +4394,10 @@
           ${item.isBulk ? `<span class="badge badge-blue" style="font-size:11px;">${item.quantity} units</span>` : ''}
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px;">
-          ${w ? `Held by: <span style="color:var(--text2);">${w.fname} ${w.lname}</span>` : 'No holder'}
+          ${w ? `Held by: <span style="color:var(--text2);">${w.fname} ${w.lname}</span>` : 'General Route Tool'}
           · From: ${originLoc ? originLoc.name : '—'}
         </div>
-        ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;padding:2px 8px;" onclick="removeItemFromEvent('${item.id}')">Remove from Event</button>` : ''}
+        ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;padding:2px 8px;" onclick="removeItemFromEvent('${item.id}')">Return Tool</button>` : ''}
       </div>
     </div>`;
       }).join('');
@@ -4333,10 +4405,12 @@
 
     let currentMassAssignTarget = null;
     let currentMassAssignType = null;
+    let currentMassAssignSecondaryTarget = null;
 
-    function openMassAssignModal(targetId, type) {
+    function openMassAssignModal(targetId, type, secondaryTargetId = null) {
       currentMassAssignTarget = targetId;
       currentMassAssignType = type;
+      currentMassAssignSecondaryTarget = secondaryTargetId;
       const modal = document.getElementById('mass-assign-modal');
 
       let targetName = '';
@@ -4355,6 +4429,15 @@
         modal.querySelector('.modal-title').textContent = 'Quick Assign to Worker';
         document.getElementById('mai-target-label').textContent = 'Worker: ';
         document.getElementById('mai-confirm-btn').textContent = 'Assign to Worker';
+      } else if (type === 'tech_in_route') {
+        const worker = data.workers.find(w => w.id === targetId);
+        const cfg = schedCfg();
+        const ev = cfg.arr().find(e => e.id === secondaryTargetId);
+        if (!worker || !ev) return;
+        targetName = `${worker.fname} ${worker.lname} (on ${ev.name})`;
+        modal.querySelector('.modal-title').textContent = 'Assign to Tech on ' + cfg.label;
+        document.getElementById('mai-target-label').textContent = 'Tech: ';
+        document.getElementById('mai-confirm-btn').textContent = 'Assign to Tech';
       }
 
       document.getElementById('mai-target-name').textContent = targetName;
@@ -4364,7 +4447,7 @@
     }
 
     function renderMAIItems(search) {
-      const targetOrg = (currentMassAssignType === 'route') ? 'flex' : (currentMassAssignType === 'event' ? 'flux' : null);
+      const targetOrg = (currentMassAssignType === 'route' || currentMassAssignType === 'tech_in_route' && schedCfg().label === 'Route') ? 'flex' : (currentMassAssignType === 'event' || currentMassAssignType === 'tech_in_route' && schedCfg().label === 'Event' ? 'flux' : null);
 
       const available = data.items.filter(i =>
         i.status === 'Available' &&
@@ -4448,6 +4531,10 @@
               if (currentMassAssignType === 'worker') {
                 childItem.assignedTo = currentMassAssignTarget;
                 targetNameStr = 'Worker';
+              } else if (currentMassAssignType === 'tech_in_route') {
+                childItem.assignedTo = currentMassAssignTarget;
+                childItem.eventId = currentMassAssignSecondaryTarget;
+                targetNameStr = 'Tech on Event/Route';
               } else {
                 childItem.eventId = currentMassAssignTarget;
                 targetNameStr = 'Event/Route';
@@ -4461,6 +4548,10 @@
               if (currentMassAssignType === 'worker') {
                 item.assignedTo = currentMassAssignTarget;
                 targetNameStr = 'Worker';
+              } else if (currentMassAssignType === 'tech_in_route') {
+                item.assignedTo = currentMassAssignTarget;
+                item.eventId = currentMassAssignSecondaryTarget;
+                targetNameStr = 'Tech on Event/Route';
               } else {
                 item.eventId = currentMassAssignTarget;
                 targetNameStr = 'Event/Route';
@@ -4475,6 +4566,10 @@
             if (currentMassAssignType === 'worker') {
               item.assignedTo = currentMassAssignTarget;
               targetNameStr = 'Worker';
+            } else if (currentMassAssignType === 'tech_in_route') {
+              item.assignedTo = currentMassAssignTarget;
+              item.eventId = currentMassAssignSecondaryTarget;
+              targetNameStr = 'Tech on Event/Route';
             } else {
               item.eventId = currentMassAssignTarget;
               targetNameStr = 'Event/Route';
@@ -4505,6 +4600,8 @@
       // Refresh detail overlays
       if (currentMassAssignType === 'worker') {
         openWorkerDetail(currentMassAssignTarget);
+      } else if (currentMassAssignType === 'tech_in_route') {
+        openEventDetail(currentMassAssignSecondaryTarget);
       } else {
         openEventDetail(currentMassAssignTarget);
       }
@@ -4516,27 +4613,42 @@
       if (!item) return;
       const evName = data.events.find(e => e.id === item.eventId)?.name || data.routes.find(r => r.id === item.eventId)?.name || '';
 
-      if (item.isBulk && !item.assignedTo) {
-        // If it's a bulk item child not held by any worker, return it to the master item.
-        const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
+      if (item.isBulk) {
+        // Find master item to merge quantity back
+        const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && !i.eventId && i.id !== item.id);
         if (masterItem) {
           masterItem.quantity += item.quantity;
           updateItemInSheets(masterItem);
+        } else {
+          // If no master exists, we just unassign this one to become the master
+          item.eventId = null;
+          item.assignedTo = null;
+          item.status = 'Available';
+          updateItemInSheets(item);
+          const msg = `${item.name} returned from event "${evName}"`;
+          addHistory(msg, 'unassign');
+          saveHistoryToSheets(msg, 'unassign');
+          toast('Item returned to stock', 'info');
+          if (currentEventDetailId) openEventDetail(currentEventDetailId);
+          renderAll();
+          return;
         }
         item.eventId = null;
+        item.assignedTo = null;
         item.status = 'Archived';
         item.quantity = 0;
         updateItemInSheets(item);
       } else {
         item.eventId = null;
-        if (!item.assignedTo) item.status = 'Available';
+        item.assignedTo = null;
+        item.status = 'Available';
         updateItemInSheets(item);
       }
 
-      const msg = `${item.name} removed from event "${evName}"`;
+      const msg = `${item.name} returned from event "${evName}"`;
       addHistory(msg, 'unassign');
       saveHistoryToSheets(msg, 'unassign');
-      toast('Item removed from event', 'info');
+      toast('Item returned to stock', 'info');
 
       // Refresh detail
       if (currentEventDetailId) openEventDetail(currentEventDetailId);
@@ -4550,10 +4662,9 @@
       if (!ev) return;
 
       const assignedItems = data.items.filter(i => i.eventId === eventId);
-      const pendingItems = assignedItems.filter(i => i.assignedTo !== null || i.status === 'Assigned');
 
-      if (pendingItems.length > 0) {
-        toast('Error: You must return all items back to inventory before closing the ' + cfg.label.toLowerCase() + '.', 'error');
+      if (assignedItems.length > 0) {
+        toast(`Cannot close: ${assignedItems.length} item(s) must be returned first`, 'error');
         return;
       }
 
