@@ -3126,18 +3126,24 @@
     ${workerEvs.length ? `<div class="detail-row"><span class="detail-key">Active Routes/Events</span><span class="detail-val" style="color:var(--blue);font-weight:500;">${workerEvs.map(e => e.name).join('<br>')}</span></div>` : ''}
   `;
       document.getElementById('od-history').innerHTML = items.length
-        ? items.map(item => `<div class="history-item">
+        ? items.map(item => {
+           let evName = '';
+           if (item.eventId) {
+             const ev = data.events.find(e => e.id === item.eventId) || data.routes.find(r => r.id === item.eventId);
+             if (ev) evName = ` <span style="color:var(--text3);font-size:10px;">(in ${ev.name})</span>`;
+           }
+           return `<div class="history-item">
         <div class="history-dot" style="background:var(--blue)"></div>
         <div class="history-body" style="flex:1;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
             <div>
-              <div class="history-action" style="font-size:12px;">${item.name}</div>
+              <div class="history-action" style="font-size:12px;">${item.name}${evName}</div>
               <div class="history-meta">${item.barcode} · ${item.category}</div>
             </div>
             <button class="btn btn-ghost btn-sm" style="color:var(--orange);" onclick="event.stopPropagation(); unassignById('${item.id}');">Return</button>
           </div>
         </div>
-      </div>`).join('')
+      </div>`}).join('')
         : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No items assigned</div>';
 
       const editBtn = document.getElementById('od-assign-btn');
