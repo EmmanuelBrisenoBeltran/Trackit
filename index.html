@@ -196,7 +196,11 @@
       align-items: center;
       justify-content: center;
     }
-    .login-overlay.open { display: flex; }
+
+    .login-overlay.open {
+      display: flex;
+    }
+
     .login-card {
       background: var(--bg2);
       border: 1px solid var(--border);
@@ -205,17 +209,23 @@
       width: 360px;
       max-width: 90vw;
     }
+
     .login-card h1 {
       margin: 0 0 4px;
       font-size: 22px;
       font-weight: 700;
     }
+
     .login-card p {
       margin: 0 0 24px;
       font-size: 12px;
       color: var(--text3);
     }
-    .login-field { margin-bottom: 14px; }
+
+    .login-field {
+      margin-bottom: 14px;
+    }
+
     .login-field label {
       display: block;
       font-size: 11px;
@@ -224,12 +234,14 @@
       letter-spacing: 0.5px;
       margin-bottom: 6px;
     }
+
     .login-error {
       color: var(--red);
       font-size: 12px;
       margin-top: 8px;
       min-height: 16px;
     }
+
     .user-pill {
       display: flex;
       align-items: center;
@@ -239,18 +251,21 @@
       padding: 8px 10px;
       margin-bottom: 8px;
     }
+
     .user-pill-name {
       flex: 1;
       font-size: 12px;
       color: var(--text);
       font-weight: 500;
     }
+
     .user-pill-org {
       font-size: 10px;
       color: var(--text3);
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+
     .logout-btn {
       background: transparent;
       border: 1px solid var(--border);
@@ -260,7 +275,11 @@
       font-size: 11px;
       cursor: pointer;
     }
-    .logout-btn:hover { color: var(--red); border-color: var(--red); }
+
+    .logout-btn:hover {
+      color: var(--red);
+      border-color: var(--red);
+    }
 
     .location-pill {
       display: flex;
@@ -1739,8 +1758,8 @@
         </div>
       </div>
       <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
-        <button class="btn btn-danger btn-sm" onclick="deleteEvent()" id="event-delete-btn"
-          style="display:none;">Delete Event</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEvent()" id="event-delete-btn" style="display:none;">Delete
+          Event</button>
         <div style="display:flex; gap:8px;">
           <button class="btn btn-ghost" onclick="closeModal('event-modal')">Cancel</button>
           <button class="btn btn-primary" onclick="saveEvent()" id="event-save-btn">Create Event</button>
@@ -1764,10 +1783,11 @@
         </div>
         <div class="section-title">Select Items to Assign</div>
         <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-          <input class="form-input" id="mai-search" placeholder="Search items..." oninput="filterMAIItems(this.value)" style="flex:1; margin-right: 10px;">
+          <input class="form-input" id="mai-search" placeholder="Search items..." oninput="filterMAIItems(this.value)"
+            style="flex:1; margin-right: 10px;">
           <label style="font-size: 13px; display:flex; align-items:center; cursor:pointer;">
-             <input type="checkbox" id="mai-select-all" onclick="toggleAllMAIItems(this)" style="margin-right:4px;">
-             Select All
+            <input type="checkbox" id="mai-select-all" onclick="toggleAllMAIItems(this)" style="margin-right:4px;">
+            Select All
           </label>
         </div>
         <div id="mai-items-list"
@@ -1895,7 +1915,8 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="cancelDelete()">Cancel</button>
-        <button class="btn btn-danger" style="background:var(--red);color:#fff;" onclick="confirmDeleteAction()">Delete</button>
+        <button class="btn btn-danger" style="background:var(--red);color:#fff;"
+          onclick="confirmDeleteAction()">Delete</button>
       </div>
     </div>
   </div>
@@ -2185,14 +2206,18 @@
     // ─── SCHEDULE KIND (Events vs Routes) ─────────────────────────
     let scheduleKind = 'event'; // set by the caller before invoking event-like functions
     const SCHED = {
-      event: { sheet: 'Events', idPrefix: 'EVT', label: 'Event',
-               arr: () => data.events,
-               nextId: () => data.nextEventId++,
-               filterEl: 'filter-event-status', gridEl: 'events-grid' },
-      route: { sheet: 'Routes', idPrefix: 'RTE', label: 'Route',
-               arr: () => data.routes,
-               nextId: () => data.nextRouteId++,
-               filterEl: 'filter-route-status', gridEl: 'routes-grid' },
+      event: {
+        sheet: 'Events', idPrefix: 'EVT', label: 'Event',
+        arr: () => data.events,
+        nextId: () => data.nextEventId++,
+        filterEl: 'filter-event-status', gridEl: 'events-grid'
+      },
+      route: {
+        sheet: 'Routes', idPrefix: 'RTE', label: 'Route',
+        arr: () => data.routes,
+        nextId: () => data.nextRouteId++,
+        filterEl: 'filter-route-status', gridEl: 'routes-grid'
+      },
     };
     function schedCfg() { return SCHED[scheduleKind]; }
 
@@ -2674,53 +2699,53 @@
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
 
-      if (editingItemId) {
-        const item = data.items.find(i => i.id === editingItemId);
-        if (item) {
-          item.name = name;
-          item.isBulk = document.getElementById('f-isbulk').checked;
-          item.quantity = item.isBulk ? parseInt(document.getElementById('f-qty').value) || 1 : 1;
-          item.category = document.getElementById('f-cat').value;
-          item.location = loc;
-          item.brand = document.getElementById('f-brand').value;
-          item.serial = document.getElementById('f-serial').value;
-          item.condition = document.getElementById('f-cond').value;
-          item.status = document.getElementById('f-status').value;
-          item.notes = document.getElementById('f-notes').value;
-          item.uidType = document.getElementById('f-uid-type').value;
-          item.uid = document.getElementById('f-uid').value;
-          await updateItemInSheets(item);
+        if (editingItemId) {
+          const item = data.items.find(i => i.id === editingItemId);
+          if (item) {
+            item.name = name;
+            item.isBulk = document.getElementById('f-isbulk').checked;
+            item.quantity = item.isBulk ? parseInt(document.getElementById('f-qty').value) || 1 : 1;
+            item.category = document.getElementById('f-cat').value;
+            item.location = loc;
+            item.brand = document.getElementById('f-brand').value;
+            item.serial = document.getElementById('f-serial').value;
+            item.condition = document.getElementById('f-cond').value;
+            item.status = document.getElementById('f-status').value;
+            item.notes = document.getElementById('f-notes').value;
+            item.uidType = document.getElementById('f-uid-type').value;
+            item.uid = document.getElementById('f-uid').value;
+            await updateItemInSheets(item);
+          }
+          toast('Item updated in Google Sheets ✓', 'success');
+        } else {
+          const barcode = 'TRK-' + String(data.nextBarcode++).padStart(4, '0');
+          const locObj = data.locations.find(l => l.id === loc);
+          const isBulk = document.getElementById('f-isbulk').checked;
+          const quantity = isBulk ? parseInt(document.getElementById('f-qty').value) || 1 : 1;
+          data.items.push({
+            id: 'ITM' + String(data.nextItemId++).padStart(3, '0'),
+            name, barcode, isBulk, quantity,
+            category: document.getElementById('f-cat').value,
+            location: loc,
+            brand: document.getElementById('f-brand').value,
+            serial: document.getElementById('f-serial').value,
+            condition: document.getElementById('f-cond').value,
+            status: document.getElementById('f-status').value,
+            assignedTo: null,
+            notes: document.getElementById('f-notes').value,
+            uidType: document.getElementById('f-uid-type').value,
+            uid: document.getElementById('f-uid').value,
+            org: orgForNewEntity('f-org'),
+            created: new Date().toISOString().split('T')[0],
+          });
+          addHistory(`${name} added to ${locObj ? locObj.name : loc}`, 'add');
+          await saveItemToSheets(data.items[data.items.length - 1]);
+          await saveHistoryToSheets(`${name} added to ${locObj ? locObj.name : loc}`, 'add');
+          toast('Item saved to Google Sheets ✓', 'success');
         }
-        toast('Item updated in Google Sheets ✓', 'success');
-      } else {
-        const barcode = 'TRK-' + String(data.nextBarcode++).padStart(4, '0');
-        const locObj = data.locations.find(l => l.id === loc);
-        const isBulk = document.getElementById('f-isbulk').checked;
-        const quantity = isBulk ? parseInt(document.getElementById('f-qty').value) || 1 : 1;
-        data.items.push({
-          id: 'ITM' + String(data.nextItemId++).padStart(3, '0'),
-          name, barcode, isBulk, quantity,
-          category: document.getElementById('f-cat').value,
-          location: loc,
-          brand: document.getElementById('f-brand').value,
-          serial: document.getElementById('f-serial').value,
-          condition: document.getElementById('f-cond').value,
-          status: document.getElementById('f-status').value,
-          assignedTo: null,
-          notes: document.getElementById('f-notes').value,
-          uidType: document.getElementById('f-uid-type').value,
-          uid: document.getElementById('f-uid').value,
-          org: orgForNewEntity('f-org'),
-          created: new Date().toISOString().split('T')[0],
-        });
-        addHistory(`${name} added to ${locObj ? locObj.name : loc}`, 'add');
-        await saveItemToSheets(data.items[data.items.length - 1]);
-        await saveHistoryToSheets(`${name} added to ${locObj ? locObj.name : loc}`, 'add');
-        toast('Item saved to Google Sheets ✓', 'success');
-      }
-      closeModal('item-modal');
-      renderAll();
-      updateNavBadges();
+        closeModal('item-modal');
+        renderAll();
+        updateNavBadges();
       } finally {
         _savingItem = false;
         btn.disabled = false; btn.textContent = origText;
@@ -3082,11 +3107,11 @@
 
       const workerEvs = [];
       [...data.events, ...data.routes].forEach(e => {
-         if (e.status !== 'Closed' && e.status !== 'Archived') {
-             if ((e.managers || []).includes(workerId) || items.some(i => i.eventId === e.id)) {
-                workerEvs.push(e);
-             }
-         }
+        if (e.status !== 'Closed' && e.status !== 'Archived') {
+          if ((e.managers || []).includes(workerId) || items.some(i => i.eventId === e.id)) {
+            workerEvs.push(e);
+          }
+        }
       });
 
       document.getElementById('od-name').textContent = `${worker.fname} ${worker.lname}`;
@@ -3119,7 +3144,7 @@
       editBtn.style.display = '';
       editBtn.textContent = 'Edit Worker';
       editBtn.onclick = () => { closeOverlay(); openWorkerModal(workerId); };
-      
+
       let assignItemsBtn = document.getElementById('od-assign-items-btn');
       if (!assignItemsBtn) {
         assignItemsBtn = document.createElement('button');
@@ -3556,7 +3581,7 @@
         pendingBulkReturnCode = code;
         document.getElementById('bw-list').innerHTML = activeCheckouts.map(chk => {
           const w = data.workers.find(wk => wk.id === chk.assignedTo);
-          const ev = chk.eventId ? (data.events.find(e=>e.id===chk.eventId) || data.routes.find(r=>r.id===chk.eventId)) : null;
+          const ev = chk.eventId ? (data.events.find(e => e.id === chk.eventId) || data.routes.find(r => r.id === chk.eventId)) : null;
           const assignedText = w ? w.fname + ' ' + w.lname : (ev ? 'Event/Route: ' + ev.name : 'Unknown');
           return `<div class="assign-list-item" onclick="selectBulkReturnWorker('${chk.id}')" style="cursor:pointer;padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
         <div style="font-weight:500;">${assignedText}</div>
@@ -3782,10 +3807,10 @@
         const managers = (ev.managers || []).map(id => data.workers.find(w => w.id === id)).filter(Boolean);
         const assignedItems = data.items.filter(i => i.eventId === ev.id);
         const totalUnits = assignedItems.reduce((s, i) => s + (i.isBulk ? (i.quantity || 1) : 1), 0);
-        
+
         const workerIds = [...new Set(assignedItems.filter(i => i.assignedTo).map(i => i.assignedTo))];
         const assignedWorkers = workerIds.map(id => data.workers.find(w => w.id === id)).filter(Boolean).filter(w => !(ev.managers || []).includes(w.id));
-        
+
         const allPersonnel = [...managers, ...assignedWorkers];
 
         const isMasterChief = (w) => {
@@ -3895,94 +3920,94 @@
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
 
-      const managers = [...document.querySelectorAll('#ef-managers-list input[type=checkbox]:checked')].map(cb => cb.value);
+        const managers = [...document.querySelectorAll('#ef-managers-list input[type=checkbox]:checked')].map(cb => cb.value);
 
-      if (editingEventId) {
-        const ev = cfg.arr().find(e => e.id === editingEventId);
-        if (ev) {
-          const oldName = ev.name;
-          const oldStart = ev.start;
-          const oldLocation = ev.location;
-          const oldStatus = ev.status;
-          const oldNotes = ev.notes;
-          const oldManagersStr = (ev.managers || []).join(',');
-          const newManagersStr = managers.join(',');
+        if (editingEventId) {
+          const ev = cfg.arr().find(e => e.id === editingEventId);
+          if (ev) {
+            const oldName = ev.name;
+            const oldStart = ev.start;
+            const oldLocation = ev.location;
+            const oldStatus = ev.status;
+            const oldNotes = ev.notes;
+            const oldManagersStr = (ev.managers || []).join(',');
+            const newManagersStr = managers.join(',');
 
-          ev.name = name; ev.start = start; ev.end = '';
-          ev.location = document.getElementById('ef-location').value;
-          ev.status = document.getElementById('ef-status').value;
-          ev.notes = document.getElementById('ef-notes').value;
-          ev.managers = managers;
+            ev.name = name; ev.start = start; ev.end = '';
+            ev.location = document.getElementById('ef-location').value;
+            ev.status = document.getElementById('ef-status').value;
+            ev.notes = document.getElementById('ef-notes').value;
+            ev.managers = managers;
 
-          let historyPromises = [];
-          if (oldManagersStr !== newManagersStr) {
-             const mgrNames = managers.map(id => {
+            let historyPromises = [];
+            if (oldManagersStr !== newManagersStr) {
+              const mgrNames = managers.map(id => {
                 const w = data.workers.find(wk => wk.id === id);
                 return w ? `${w.fname} ${w.lname}` : id;
-             }).join(', ') || 'None';
-             const msg = `Managers for ${cfg.label} "${ev.name}" updated to: ${mgrNames}`;
-             addHistory(msg, 'edit');
-             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
-          }
-          if (oldStart !== ev.start) {
-             const msg = `Dates for ${cfg.label} "${ev.name}" updated to: ${ev.start}`;
-             addHistory(msg, 'edit');
-             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
-          }
-          if (oldLocation !== ev.location) {
-             const locName = (data.locations.find(l => l.id === ev.location)?.name) || ev.location || 'None';
-             const msg = `Location for ${cfg.label} "${ev.name}" updated to: ${locName}`;
-             addHistory(msg, 'edit');
-             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
-          }
-          if (oldStatus !== ev.status) {
-             const msg = `Status for ${cfg.label} "${ev.name}" updated to: ${ev.status}`;
-             addHistory(msg, 'edit');
-             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
-          }
-          if (oldNotes !== ev.notes) {
-             const msg = `Notes for ${cfg.label} "${ev.name}" updated`;
-             addHistory(msg, 'edit');
-             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
-          }
-          if (oldName !== ev.name) {
-             const msg = `Name for ${cfg.label} "${oldName}" updated to "${ev.name}"`;
-             addHistory(msg, 'edit');
-             historyPromises.push(saveHistoryToSheets(msg, 'edit'));
-          }
+              }).join(', ') || 'None';
+              const msg = `Managers for ${cfg.label} "${ev.name}" updated to: ${mgrNames}`;
+              addHistory(msg, 'edit');
+              historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+            }
+            if (oldStart !== ev.start) {
+              const msg = `Dates for ${cfg.label} "${ev.name}" updated to: ${ev.start}`;
+              addHistory(msg, 'edit');
+              historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+            }
+            if (oldLocation !== ev.location) {
+              const locName = (data.locations.find(l => l.id === ev.location)?.name) || ev.location || 'None';
+              const msg = `Location for ${cfg.label} "${ev.name}" updated to: ${locName}`;
+              addHistory(msg, 'edit');
+              historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+            }
+            if (oldStatus !== ev.status) {
+              const msg = `Status for ${cfg.label} "${ev.name}" updated to: ${ev.status}`;
+              addHistory(msg, 'edit');
+              historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+            }
+            if (oldNotes !== ev.notes) {
+              const msg = `Notes for ${cfg.label} "${ev.name}" updated`;
+              addHistory(msg, 'edit');
+              historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+            }
+            if (oldName !== ev.name) {
+              const msg = `Name for ${cfg.label} "${oldName}" updated to "${ev.name}"`;
+              addHistory(msg, 'edit');
+              historyPromises.push(saveHistoryToSheets(msg, 'edit'));
+            }
 
-          if (historyPromises.length > 0) await Promise.all(historyPromises);
+            if (historyPromises.length > 0) await Promise.all(historyPromises);
 
-          await sheetsPost('update', cfg.sheet, {
+            await sheetsPost('update', cfg.sheet, {
+              ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
+              Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
+              Managers: (ev.managers || []).join(','), Created: ev.created
+            });
+          }
+          toast(cfg.label + ' updated ✓', 'success');
+        } else {
+          const ev = {
+            id: cfg.idPrefix + String(cfg.nextId()).padStart(3, '0'),
+            name, start, end: '',
+            location: document.getElementById('ef-location').value,
+            status: document.getElementById('ef-status').value,
+            notes: document.getElementById('ef-notes').value,
+            managers,
+            created: new Date().toISOString().split('T')[0],
+          };
+          cfg.arr().push(ev);
+          await sheetsPost('append', cfg.sheet, {
             ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
             Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
             Managers: (ev.managers || []).join(','), Created: ev.created
           });
+          addHistory(`${cfg.label} "${name}" created`, 'add');
+          await saveHistoryToSheets(`${cfg.label} "${name}" created`, 'add');
+          toast(cfg.label + ' created ✓', 'success');
         }
-        toast(cfg.label + ' updated ✓', 'success');
-      } else {
-        const ev = {
-          id: cfg.idPrefix + String(cfg.nextId()).padStart(3, '0'),
-          name, start, end: '',
-          location: document.getElementById('ef-location').value,
-          status: document.getElementById('ef-status').value,
-          notes: document.getElementById('ef-notes').value,
-          managers,
-          created: new Date().toISOString().split('T')[0],
-        };
-        cfg.arr().push(ev);
-        await sheetsPost('append', cfg.sheet, {
-          ID: ev.id, Name: ev.name, Start: ev.start, End: ev.end,
-          Location: ev.location || '', Status: ev.status, Notes: ev.notes || '',
-          Managers: (ev.managers || []).join(','), Created: ev.created
-        });
-        addHistory(`${cfg.label} "${name}" created`, 'add');
-        await saveHistoryToSheets(`${cfg.label} "${name}" created`, 'add');
-        toast(cfg.label + ' created ✓', 'success');
-      }
-      closeModal('event-modal');
-      renderAll();
-      updateNavBadges();
+        closeModal('event-modal');
+        renderAll();
+        updateNavBadges();
       } finally {
         _savingEvent = false;
         btn.disabled = false; btn.textContent = origText;
@@ -4251,23 +4276,23 @@
       currentMassAssignTarget = targetId;
       currentMassAssignType = type;
       const modal = document.getElementById('mass-assign-modal');
-      
+
       let targetName = '';
       if (type === 'event' || type === 'route') {
-         const cfg = schedCfg();
-         const ev = cfg.arr().find(e => e.id === targetId);
-         if (!ev) return;
-         targetName = ev.name;
-         modal.querySelector('.modal-title').textContent = 'Quick Assign to ' + cfg.label;
-         document.getElementById('mai-target-label').textContent = cfg.label + ': ';
-         document.getElementById('mai-confirm-btn').textContent = 'Assign to ' + cfg.label;
+        const cfg = schedCfg();
+        const ev = cfg.arr().find(e => e.id === targetId);
+        if (!ev) return;
+        targetName = ev.name;
+        modal.querySelector('.modal-title').textContent = 'Quick Assign to ' + cfg.label;
+        document.getElementById('mai-target-label').textContent = cfg.label + ': ';
+        document.getElementById('mai-confirm-btn').textContent = 'Assign to ' + cfg.label;
       } else if (type === 'worker') {
-         const worker = data.workers.find(w => w.id === targetId);
-         if (!worker) return;
-         targetName = `${worker.fname} ${worker.lname}`;
-         modal.querySelector('.modal-title').textContent = 'Quick Assign to Worker';
-         document.getElementById('mai-target-label').textContent = 'Worker: ';
-         document.getElementById('mai-confirm-btn').textContent = 'Assign to Worker';
+        const worker = data.workers.find(w => w.id === targetId);
+        if (!worker) return;
+        targetName = `${worker.fname} ${worker.lname}`;
+        modal.querySelector('.modal-title').textContent = 'Quick Assign to Worker';
+        document.getElementById('mai-target-label').textContent = 'Worker: ';
+        document.getElementById('mai-confirm-btn').textContent = 'Assign to Worker';
       }
 
       document.getElementById('mai-target-name').textContent = targetName;
@@ -4278,7 +4303,7 @@
 
     function renderMAIItems(search) {
       const targetOrg = (currentMassAssignType === 'route') ? 'flex' : (currentMassAssignType === 'event' ? 'flux' : null);
-      
+
       const available = data.items.filter(i =>
         i.status === 'Available' &&
         (!i.assignedTo) &&
@@ -4318,8 +4343,8 @@
       checkboxes.forEach(cb => cb.checked = el.checked);
     }
 
-    function filterMAIItems(val) { 
-      renderMAIItems(val); 
+    function filterMAIItems(val) {
+      renderMAIItems(val);
       const selectAll = document.getElementById('mai-select-all');
       if (selectAll) selectAll.checked = false;
     }
@@ -4327,7 +4352,7 @@
     async function confirmMassAssign() {
       const checkboxes = Array.from(document.querySelectorAll('#mai-items-list input[type="checkbox"]:checked'));
       if (checkboxes.length === 0) { toast('Please select at least one item', 'error'); return; }
-      
+
       const btn = document.getElementById('mai-confirm-btn');
       if (btn) {
         btn.textContent = 'Assigning...';
@@ -4345,52 +4370,52 @@
             const qtyInput = document.getElementById(`mai-qty-${item.id}`);
             const qtyToAssign = qtyInput ? parseInt(qtyInput.value) : item.quantity;
             if (isNaN(qtyToAssign) || qtyToAssign <= 0 || qtyToAssign > item.quantity) {
-               toast(`Invalid quantity for ${item.name}`, 'error');
-               continue;
+              toast(`Invalid quantity for ${item.name}`, 'error');
+              continue;
             }
             if (qtyToAssign < item.quantity) {
-               // Partially assign
-               item.quantity -= qtyToAssign;
-               await updateItemInSheets(item);
-               
-               const childId = 'ITM' + String(data.nextItemId++).padStart(3, '0');
-               const childItem = {
-                 ...item, id: childId, quantity: qtyToAssign,
-                 status: 'Assigned', created: new Date().toISOString().split('T')[0]
-               };
-               if (currentMassAssignType === 'worker') {
-                  childItem.assignedTo = currentMassAssignTarget;
-                  targetNameStr = 'Worker';
-               } else {
-                  childItem.eventId = currentMassAssignTarget;
-                  targetNameStr = 'Event/Route';
-               }
-               data.items.push(childItem);
-               await saveItemToSheets(childItem);
-               count++;
-               addedNames.push(item.name);
+              // Partially assign
+              item.quantity -= qtyToAssign;
+              await updateItemInSheets(item);
+
+              const childId = 'ITM' + String(data.nextItemId++).padStart(3, '0');
+              const childItem = {
+                ...item, id: childId, quantity: qtyToAssign,
+                status: 'Assigned', created: new Date().toISOString().split('T')[0]
+              };
+              if (currentMassAssignType === 'worker') {
+                childItem.assignedTo = currentMassAssignTarget;
+                targetNameStr = 'Worker';
+              } else {
+                childItem.eventId = currentMassAssignTarget;
+                targetNameStr = 'Event/Route';
+              }
+              data.items.push(childItem);
+              await saveItemToSheets(childItem);
+              count++;
+              addedNames.push(item.name);
             } else {
-               // Assign all
-               if (currentMassAssignType === 'worker') {
-                  item.assignedTo = currentMassAssignTarget;
-                  targetNameStr = 'Worker';
-               } else {
-                  item.eventId = currentMassAssignTarget;
-                  targetNameStr = 'Event/Route';
-               }
-               item.status = 'Assigned';
-               await updateItemInSheets(item);
-               count++;
-               addedNames.push(item.name);
+              // Assign all
+              if (currentMassAssignType === 'worker') {
+                item.assignedTo = currentMassAssignTarget;
+                targetNameStr = 'Worker';
+              } else {
+                item.eventId = currentMassAssignTarget;
+                targetNameStr = 'Event/Route';
+              }
+              item.status = 'Assigned';
+              await updateItemInSheets(item);
+              count++;
+              addedNames.push(item.name);
             }
           } else {
             // Non-bulk item
             if (currentMassAssignType === 'worker') {
-                item.assignedTo = currentMassAssignTarget;
-                targetNameStr = 'Worker';
+              item.assignedTo = currentMassAssignTarget;
+              targetNameStr = 'Worker';
             } else {
-                item.eventId = currentMassAssignTarget;
-                targetNameStr = 'Event/Route';
+              item.eventId = currentMassAssignTarget;
+              targetNameStr = 'Event/Route';
             }
             item.status = 'Assigned';
             await updateItemInSheets(item);
@@ -4417,9 +4442,9 @@
 
       // Refresh detail overlays
       if (currentMassAssignType === 'worker') {
-          openWorkerDetail(currentMassAssignTarget);
+        openWorkerDetail(currentMassAssignTarget);
       } else {
-          openEventDetail(currentMassAssignTarget);
+        openEventDetail(currentMassAssignTarget);
       }
       renderAll();
     }
@@ -4428,22 +4453,22 @@
       const item = data.items.find(i => i.id === itemId);
       if (!item) return;
       const evName = data.events.find(e => e.id === item.eventId)?.name || data.routes.find(r => r.id === item.eventId)?.name || '';
-      
+
       if (item.isBulk && !item.assignedTo) {
-          // If it's a bulk item child not held by any worker, return it to the master item.
-          const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
-          if (masterItem) {
-              masterItem.quantity += item.quantity;
-              updateItemInSheets(masterItem);
-          }
-          item.eventId = null;
-          item.status = 'Archived';
-          item.quantity = 0;
-          updateItemInSheets(item);
+        // If it's a bulk item child not held by any worker, return it to the master item.
+        const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
+        if (masterItem) {
+          masterItem.quantity += item.quantity;
+          updateItemInSheets(masterItem);
+        }
+        item.eventId = null;
+        item.status = 'Archived';
+        item.quantity = 0;
+        updateItemInSheets(item);
       } else {
-          item.eventId = null;
-          if (!item.assignedTo) item.status = 'Available';
-          updateItemInSheets(item);
+        item.eventId = null;
+        if (!item.assignedTo) item.status = 'Available';
+        updateItemInSheets(item);
       }
 
       const msg = `${item.name} removed from event "${evName}"`;
@@ -4502,7 +4527,7 @@
 
       if (!confirm(`Are you sure you want to permanently delete the ${cfg.label.toLowerCase()} "${ev.name}"?`)) return;
 
-      ev.status = 'Deleted'; 
+      ev.status = 'Deleted';
       sheetsPost('delete', cfg.sheet, { ID: ev.id });
 
       const msg = `${cfg.label} "${ev.name}" DELETED`;
