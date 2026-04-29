@@ -3200,6 +3200,11 @@
       document.getElementById('od-unassign-btn').style.display = '';
       document.getElementById('od-delete-btn').style.display = '';
       document.getElementById('od-delete-btn').onclick = () => deleteItem(itemId);
+
+      if (document.getElementById('close-event-btn')) document.getElementById('close-event-btn').style.display = 'none';
+      if (document.getElementById('archive-event-btn')) document.getElementById('archive-event-btn').style.display = 'none';
+      if (document.getElementById('delete-event-btn')) document.getElementById('delete-event-btn').style.display = 'none';
+
       document.getElementById('item-detail').classList.add('open');
     }
 
@@ -3208,6 +3213,15 @@
       if (!worker) return;
       const items = data.items.filter(i => i.assignedTo === workerId);
       const loc = data.locations.find(l => l.id === worker.location);
+
+      const workerEvs = [];
+      [...data.events, ...data.routes].forEach(e => {
+         if (e.status !== 'Closed' && e.status !== 'Archived') {
+             if ((e.managers || []).includes(workerId) || items.some(i => i.eventId === e.id)) {
+                workerEvs.push(e);
+             }
+         }
+      });
 
       document.getElementById('od-name').textContent = `${worker.fname} ${worker.lname}`;
       document.getElementById('od-code').textContent = worker.eid || worker.id;
@@ -3218,6 +3232,7 @@
     <div class="detail-row"><span class="detail-key">Location</span><span class="detail-val">${loc ? loc.name : '—'}</span></div>
     <div class="detail-row"><span class="detail-key">Phone</span><span class="detail-val">${worker.phone || '—'}</span></div>
     <div class="detail-row"><span class="detail-key">Items Assigned</span><span class="detail-val" style="color:var(--accent);font-family:'DM Mono',monospace;">${items.length}</span></div>
+    ${workerEvs.length ? `<div class="detail-row"><span class="detail-key">Active Routes/Events</span><span class="detail-val" style="color:var(--blue);font-weight:500;">${workerEvs.map(e => e.name).join('<br>')}</span></div>` : ''}
   `;
       document.getElementById('od-history').innerHTML = items.length
         ? items.map(item => `<div class="history-item">
@@ -3240,6 +3255,11 @@
       printBtn.onclick = () => printWorkerBadge(workerId);
       document.getElementById('od-delete-btn').style.display = '';
       document.getElementById('od-delete-btn').onclick = () => deleteWorker(workerId);
+
+      if (document.getElementById('close-event-btn')) document.getElementById('close-event-btn').style.display = 'none';
+      if (document.getElementById('archive-event-btn')) document.getElementById('archive-event-btn').style.display = 'none';
+      if (document.getElementById('delete-event-btn')) document.getElementById('delete-event-btn').style.display = 'none';
+
       document.getElementById('item-detail').classList.add('open');
     }
 
@@ -4512,6 +4532,7 @@
     }
 
     function closeEvent(eventId) {
+      if (currentEventDetailKind) scheduleKind = currentEventDetailKind;
       const cfg = schedCfg();
       const ev = cfg.arr().find(e => e.id === eventId);
       if (!ev) return;
@@ -4543,6 +4564,7 @@
     }
 
     function deleteEvent(eventId) {
+      if (currentEventDetailKind) scheduleKind = currentEventDetailKind;
       const cfg = schedCfg();
       const ev = cfg.arr().find(e => e.id === eventId);
       if (!ev) return;
@@ -4569,6 +4591,7 @@
     }
 
     function archiveEvent(eventId) {
+      if (currentEventDetailKind) scheduleKind = currentEventDetailKind;
       const cfg = schedCfg();
       const ev = cfg.arr().find(e => e.id === eventId);
       if (!ev) return;
