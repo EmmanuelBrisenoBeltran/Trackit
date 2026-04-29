@@ -3169,8 +3169,8 @@
 
       const workerEvs = [];
       [...data.events, ...data.routes].forEach(e => {
-        if (e.status !== 'Closed' && e.status !== 'Archived') {
-          if ((e.managers || []).includes(workerId) || items.some(i => i.eventId === e.id)) {
+        if (e.status !== 'Closed' && e.status !== 'Archived' && e.status !== 'Deleted') {
+          if ((e.managers || []).includes(workerId) || (e.techs || []).includes(workerId) || items.some(i => i.eventId === e.id)) {
             workerEvs.push(e);
           }
         }
