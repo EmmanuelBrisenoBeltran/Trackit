@@ -1895,8 +1895,12 @@
           <span style="font-weight:600;" id="eai-event-name">—</span>
         </div>
         <div class="section-title">Select Item to Assign to this Event</div>
-        <div style="margin-bottom:10px;">
-          <input class="form-input" id="eai-search" placeholder="Search items..." oninput="filterEAIItems(this.value)">
+        <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+          <input class="form-input" id="eai-search" placeholder="Search items..." oninput="filterEAIItems(this.value)" style="flex:1; margin-right: 10px;">
+          <label style="font-size: 13px; display:flex; align-items:center; cursor:pointer;">
+             <input type="checkbox" id="eai-select-all" onclick="toggleAllEAIItems(this)" style="margin-right:4px;">
+             Select All
+          </label>
         </div>
         <div id="eai-items-list"
           style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);"></div>
@@ -2575,7 +2579,7 @@
       <td>${statusBadge(item.status)}</td>
       <td>
         ${worker ? `<span style="font-size:12px;">${worker.fname} ${worker.lname}</span>${item.isBulk ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">${item.quantity} qty</div>` : ''}` : '<span style="color:var(--text3)">—</span>'}
-        ${item.eventId ? (() => { const ev = data.events.find(e => e.id === item.eventId); return ev ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">◆ ${ev.name}</div>` : ''; })() : ''}
+        ${item.eventId ? (() => { const ev = data.events.find(e => e.id === item.eventId) || data.routes.find(r => r.id === item.eventId); return ev ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">◆ ${ev.name}</div>` : ''; })() : ''}
       </td>
     </tr>`;
       }).join('');
@@ -3087,6 +3091,7 @@
           addHistory(histMsg, 'unassign');
         } else {
           item.assignedTo = null;
+          item.eventId = null;
           item.status = 'Archived';
           const master = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
           if (master) {
@@ -3100,6 +3105,7 @@
         }
       } else {
         item.assignedTo = null;
+        item.eventId = null;
         item.status = 'Available';
         histMsg = `${item.name} unassigned${worker ? ' from ' + wName : ''}${evSuffix}`;
         addHistory(histMsg, 'unassign');
@@ -3166,7 +3172,7 @@
     <div class="detail-row"><span class="detail-key">Status</span><span class="detail-val">${statusBadge(item.status)}</span></div>
     ${(!item.isBulk || item.assignedTo) ? `<div class="detail-row"><span class="detail-key">Assigned To</span><span class="detail-val">${worker ? worker.fname + ' ' + worker.lname : '—'}</span></div>` : activeCheckoutsHTML}
     <div class="detail-row"><span class="detail-key">Notes</span><span class="detail-val">${item.notes || '—'}</span></div>
-    ${item.eventId ? (() => { const ev = data.events.find(e => e.id === item.eventId); return ev ? `<div class="detail-row"><span class="detail-key">Event</span><span class="detail-val" style="color:var(--green);">◆ ${ev.name}</span></div>` : ''; })() : ''}
+    ${item.eventId ? (() => { const ev = data.events.find(e => e.id === item.eventId) || data.routes.find(r => r.id === item.eventId); return ev ? `<div class="detail-row"><span class="detail-key">Event / Route</span><span class="detail-val" style="color:var(--green);">◆ ${ev.name}</span></div>` : ''; })() : ''}
     <div class="detail-row"><span class="detail-key">Added</span><span class="detail-val">${item.created || '—'}</span></div>
   `;
 
@@ -3471,6 +3477,7 @@
       if (qaStep === 'item') {
         const item = data.items.find(i => i.barcode === code && (!i.isBulk || !i.assignedTo));
         if (!item) { toast('Item not found: ' + code, 'error'); return; }
+        if (item.status !== 'Available') { toast('Item is not available (Status: ' + item.status + ')', 'error'); return; }
         if (qaItems.find(i => i.id === item.id)) { toast('Item already added', 'info'); return; }
         if (item.isBulk) {
           if (item.quantity <= 0) { toast('Item is out of stock', 'error'); return; }
@@ -3508,15 +3515,18 @@
       document.getElementById('qa-confirm-worker-code').textContent = qaWorker.barcode || qaWorker.id;
     }
 
-    function confirmQuickAssign() {
+    async function confirmQuickAssign() {
       if (!qaItems.length || !qaWorker) return;
-      qaItems.forEach(item => {
+      const btn = document.querySelector('#qa-confirm-panel .btn-primary');
+      if (btn) { btn.textContent = 'Assigning...'; btn.disabled = true; }
+
+      for (const item of qaItems) {
         let msg = '';
         if (item.isBulk) {
           const master = data.items.find(i => i.id === item.id);
           if (master) {
             master.quantity -= item.takingQty;
-            updateItemInSheets(master);
+            await updateItemInSheets(master);
           }
           const childId = 'ITM' + String(data.nextItemId++).padStart(3, '0');
           const childItem = {
@@ -3525,17 +3535,19 @@
           };
           delete childItem.takingQty;
           data.items.push(childItem);
-          saveItemToSheets(childItem);
+          await saveItemToSheets(childItem);
           msg = `${item.takingQty}x ${item.name} assigned to ${qaWorker.fname} ${qaWorker.lname}`;
         } else {
           item.assignedTo = qaWorker.id;
           item.status = 'Assigned';
-          updateItemInSheets(item);
+          await updateItemInSheets(item);
           msg = `${item.name} assigned to ${qaWorker.fname} ${qaWorker.lname}`;
         }
         addHistory(msg, 'assign');
         saveHistoryToSheets(msg, 'assign');
-      });
+      }
+
+      if (btn) { btn.textContent = 'Confirm Assignment'; btn.disabled = false; }
       toast(`✓ ${qaItems.length} item(s) assigned to ${qaWorker.fname} ${qaWorker.lname}`, 'success');
       resetQuickAssign();
       renderAll();
@@ -3633,13 +3645,15 @@
     function handleQRScan(code) {
       const isBulkScan = data.items.some(i => i.barcode === code && i.isBulk);
       if (isBulkScan) {
-        const activeCheckouts = data.items.filter(i => i.barcode === code && i.isBulk && i.assignedTo && i.status === 'Assigned');
+        const activeCheckouts = data.items.filter(i => i.barcode === code && i.isBulk && (i.assignedTo || i.eventId) && i.status === 'Assigned');
         if (!activeCheckouts.length) { toast('No assignments found for this item', 'error'); return; }
         pendingBulkReturnCode = code;
         document.getElementById('bw-list').innerHTML = activeCheckouts.map(chk => {
           const w = data.workers.find(wk => wk.id === chk.assignedTo);
+          const ev = chk.eventId ? (data.events.find(e=>e.id===chk.eventId) || data.routes.find(r=>r.id===chk.eventId)) : null;
+          const assignedText = w ? w.fname + ' ' + w.lname : (ev ? 'Event/Route: ' + ev.name : 'Unknown');
           return `<div class="assign-list-item" onclick="selectBulkReturnWorker('${chk.id}')" style="cursor:pointer;padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-weight:500;">${w ? w.fname + ' ' + w.lname : 'Unknown'}</div>
+        <div style="font-weight:500;">${assignedText}</div>
         <div style="font-size:12px;color:var(--text3);">${chk.quantity} units</div>
       </div>`;
         }).join('');
@@ -3656,9 +3670,12 @@
       updateQRItemPanel();
     }
 
-    function confirmQuickReturn() {
+    async function confirmQuickReturn() {
       if (!qrItems.length) return;
-      qrItems.forEach(item => {
+      const btn = document.querySelector('#qr-confirm-panel .btn-primary');
+      if (btn) { btn.textContent = 'Returning...'; btn.disabled = true; }
+
+      for (const item of qrItems) {
         const oldWorker = data.workers.find(w => w.id === item.assignedTo);
         const wName = oldWorker ? (oldWorker.fname + ' ' + oldWorker.lname) : 'Unknown User';
         let msg = '';
@@ -3666,35 +3683,39 @@
         if (item.isBulk) {
           if (item.returningQty < item.quantity) {
             item.quantity -= item.returningQty;
-            updateItemInSheets(item);
+            await updateItemInSheets(item);
             const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
             if (masterItem) {
               masterItem.quantity += item.returningQty;
-              updateItemInSheets(masterItem);
+              await updateItemInSheets(masterItem);
             }
             msg = `${item.returningQty}x ${item.name} partially returned from ${wName}`;
           } else {
             item.assignedTo = null;
+            item.eventId = null;
             item.status = 'Archived';
             item.quantity = 0;
-            updateItemInSheets(item);
+            await updateItemInSheets(item);
             const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
             if (masterItem) {
               masterItem.quantity += item.returningQty;
-              updateItemInSheets(masterItem);
+              await updateItemInSheets(masterItem);
             }
             msg = `${item.returningQty}x ${item.name} completely returned to inventory from ${wName}`;
           }
         } else {
           item.assignedTo = null;
+          item.eventId = null;
           item.status = 'Available';
           msg = `${item.name} returned to inventory from ${wName}`;
-          updateItemInSheets(item);
+          await updateItemInSheets(item);
         }
 
         addHistory(msg, 'return');
         saveHistoryToSheets(msg, 'return');
-      });
+      }
+
+      if (btn) { btn.textContent = 'Confirm Return'; btn.disabled = false; }
       toast(`✓ ${qrItems.length} item(s) returned to inventory`, 'success');
       resetQuickReturn();
       renderAll();
@@ -4132,7 +4153,7 @@
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <div class="section-title" style="margin-bottom:0;">Items Assigned</div>
-      ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" onclick="openEventItemAssign('${ev.id}')">+ Add Item</button>` : ''}
+      ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" onclick="openEventItemAssign('${ev.id}')">Quick Assign ⚡</button>` : ''}
     </div>
     <div id="event-detail-items">
       ${renderEventItems(ev, assignedItems)}
@@ -4201,53 +4222,64 @@
           ${item.isBulk ? `<span class="badge badge-blue" style="font-size:11px;">${item.quantity} units</span>` : ''}
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px;">
-          ${w ? `Held by: <span style="color:var(--text2);">${w.fname} ${w.lname}</span>` : 'No holder'}
-          · From: ${originLoc ? originLoc.name : '—'}
-        </div>
-        ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;padding:2px 8px;" onclick="removeItemFromEvent('${item.id}')">Remove from Event</button>` : ''}
-      </div>
-    </div>`;
-      }).join('');
-    }
-
-    function openEventItemAssign(eventId) {
-      currentEventDetailId = eventId;
-      selectedEAIItemId = null;
+          ${w ? `Held by: <span style="color:var(--text2);">${w.fname} ${w.lname}    async function confirmEventItemAssign() {
+      const checkboxes = Array.from(document.querySelectorAll('#eai-items-list input[type="checkbox"]:checked'));
+      if (checkboxes.length === 0) { toast('Please select at least one item', 'error'); return; }
       const cfg = schedCfg();
-      const ev = cfg.arr().find(e => e.id === eventId);
+      const ev = cfg.arr().find(e => e.id === currentEventDetailId);
       if (!ev) return;
-      if (!ev.managers || ev.managers.length === 0) {
-        toast('You must assign at least one manager to the ' + cfg.label.toLowerCase() + ' before adding items', 'error');
-        return;
-      }
-      document.getElementById('eai-event-name').textContent = ev.name;
-      document.getElementById('eai-search').value = '';
-      renderEAIItems('');
-      openModal('event-assign-item-modal');
-    }
 
-    function renderEAIItems(search) {
-      // Show items that are assigned to a worker but NOT yet assigned to this event
-      const available = data.items.filter(i =>
-        i.assignedTo &&
-        i.status === 'Assigned' &&
+      const btn = document.querySelector('#event-assign-item-modal .modal-footer .btn-primary');
+      btn.textContent = 'Assigning...';
+      btn.disabled = true;
+
+      let count = 0;
+      let addedNames = [];
+      for (const cb of checkboxes) {
+        const item = data.items.find(i => i.id === cb.value);
+        if (item) {
+          item.eventId = ev.id;
+          item.status = 'Assigned';
+          await updateItemInSheets(item);
+          count++;
+          addedNames.push(item.name);
+        }
+      }
+
+      btn.textContent = 'Assign to Event';
+      btn.disabled = false;
+
+      const MAX_NAMES = 3;
+      const namesPreview = addedNames.slice(0, MAX_NAMES).join(', ') + (addedNames.length > MAX_NAMES ? '...' : '');
+      const msg = `${count} item(s) assigned to event "${ev.name}": ${namesPreview}`;
+      addHistory(msg, 'assign');
+      saveHistoryToSheets(msg, 'assign');
+      toast(`${count} items added to event ✓`, 'success');
+      closeModal('event-assign-item-modal');
+      const selectAll = document.getElementById('eai-select-all');
+      if (selectAll) selectAll.checked = false;
+
+      // Refresh event detail
+      openEventDetail(ev.id);
+      renderAll();
+    } (!i.assignedTo) &&
         (!i.eventId) &&
+        i.org === targetOrg &&
         (i.name.toLowerCase().includes(search.toLowerCase()) || i.barcode.toLowerCase().includes(search.toLowerCase()))
       );
       const list = document.getElementById('eai-items-list');
       if (!available.length) {
-        list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">No available items — items must be assigned to a worker first</div>';
+        list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">No available items for this organization (' + targetOrg + ')</div>';
         return;
       }
       list.innerHTML = available.map(item => {
-        const w = data.workers.find(x => x.id === item.assignedTo);
         const loc = data.locations.find(l => l.id === item.location);
         return `<div class="assign-item" onclick="toggleEAIItem('${item.id}', this, event)">
       <input type="checkbox" class="eai-checkbox" value="${item.id}" onclick="event.stopPropagation()">
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:500;">${item.name} ${item.isBulk ? `<span class="badge badge-blue" style="font-size:10px;">${item.quantity} units</span>` : ''}</div>
         <div style="font-size:11px;color:var(--text3);">
-          Held by: ${w ? w.fname + ' ' + w.lname : '—'} · From: ${loc ? loc.name : '—'}
+          Location: ${loc ? loc.name : '—'} · Status: ${item.status}
         </div>
         <div class="mono" style="font-size:10px;">${item.barcode}</div>
       </div>
@@ -4261,25 +4293,47 @@
       cb.checked = !cb.checked;
     }
 
-    function filterEAIItems(val) { renderEAIItems(val); }
+    function toggleAllEAIItems(el) {
+      const checkboxes = document.querySelectorAll('#eai-items-list input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = el.checked);
+    }
 
-    function confirmEventItemAssign() {
+    function filterEAIItems(val) { 
+      renderEAIItems(val); 
+      const selectAll = document.getElementById('eai-select-all');
+      if (selectAll) selectAll.checked = false;
+    }
+
+    async function confirmEventItemAssign() {
       const checkboxes = Array.from(document.querySelectorAll('#eai-items-list input[type="checkbox"]:checked'));
       if (checkboxes.length === 0) { toast('Please select at least one item', 'error'); return; }
-      const ev = data.events.find(e => e.id === currentEventDetailId);
+      const cfg = schedCfg();
+      const ev = cfg.arr().find(e => e.id === currentEventDetailId);
       if (!ev) return;
+
+      const btn = document.querySelector('#event-assign-item-modal .modal-footer .btn-primary');
+      if (btn) {
+        btn.textContent = 'Assigning...';
+        btn.disabled = true;
+      }
 
       let count = 0;
       let addedNames = [];
-      checkboxes.forEach(cb => {
+      for (const cb of checkboxes) {
         const item = data.items.find(i => i.id === cb.value);
         if (item) {
           item.eventId = ev.id;
-          updateItemInSheets(item);
+          item.status = 'Assigned';
+          await updateItemInSheets(item);
           count++;
           addedNames.push(item.name);
         }
-      });
+      }
+
+      if (btn) {
+        btn.textContent = 'Assign to Event';
+        btn.disabled = false;
+      }
 
       const MAX_NAMES = 3;
       const namesPreview = addedNames.slice(0, MAX_NAMES).join(', ') + (addedNames.length > MAX_NAMES ? '...' : '');
@@ -4288,6 +4342,8 @@
       saveHistoryToSheets(msg, 'assign');
       toast(`${count} items added to event ✓`, 'success');
       closeModal('event-assign-item-modal');
+      const selectAll = document.getElementById('eai-select-all');
+      if (selectAll) selectAll.checked = false;
 
       // Refresh event detail
       openEventDetail(ev.id);
