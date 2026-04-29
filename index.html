@@ -3882,10 +3882,12 @@
         const workerIds = [...new Set(assignedItems.filter(i => i.assignedTo).map(i => i.assignedTo))];
         const assignedWorkers = workerIds.map(id => data.workers.find(w => w.id === id)).filter(Boolean).filter(w => !(ev.managers || []).includes(w.id));
         
-        const allPersonnel = [
-          ...managers.map(w => ({ ...w, _isManager: true })),
-          ...assignedWorkers.map(w => ({ ...w, _isManager: false }))
-        ];
+        const allPersonnel = [...managers, ...assignedWorkers];
+
+        const isLeader = (w) => {
+          const r = (w.role || '').toLowerCase();
+          return r.includes('manager') || r.includes('lead') || r.includes('clerk');
+        };
 
         return `<div class="location-card" onclick="openEventDetail('${ev.id}', '${kindAttr}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
@@ -3911,8 +3913,8 @@
         </div>
       </div>
       ${allPersonnel.length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
-        ${allPersonnel.slice(0, 4).map(w => w._isManager ? 
-          `<span style="font-size:11px;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:500;" title="Manager">👑 ${w.fname} ${w.lname}</span>` : 
+        ${allPersonnel.slice(0, 4).map(w => isLeader(w) ? 
+          `<span style="font-size:11px;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:500;" title="Leadership">👑 ${w.fname} ${w.lname}</span>` : 
           `<span style="font-size:11px;background:var(--bg3);color:var(--text2);padding:2px 8px;border-radius:20px;" title="Worker">👷 ${w.fname} ${w.lname}</span>`
         ).join('')}
         ${allPersonnel.length > 4 ? `<span style="font-size:11px;color:var(--text3);padding:4px 0;">+${allPersonnel.length - 4} more</span>` : ''}
