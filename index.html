@@ -4222,47 +4222,34 @@
           ${item.isBulk ? `<span class="badge badge-blue" style="font-size:11px;">${item.quantity} units</span>` : ''}
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px;">
-          ${w ? `Held by: <span style="color:var(--text2);">${w.fname} ${w.lname}    async function confirmEventItemAssign() {
-      const checkboxes = Array.from(document.querySelectorAll('#eai-items-list input[type="checkbox"]:checked'));
-      if (checkboxes.length === 0) { toast('Please select at least one item', 'error'); return; }
+          ${w ? `Held by: <span style="color:var(--text2);">${w.fname} ${w.lname}</span>` : 'No holder'}
+          · From: ${originLoc ? originLoc.name : '—'}
+        </div>
+        ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;padding:2px 8px;" onclick="removeItemFromEvent('${item.id}')">Remove from Event</button>` : ''}
+      </div>
+    </div>`;
+      }).join('');
+    }
+
+    function openEventItemAssign(eventId) {
+      currentEventDetailId = eventId;
+      selectedEAIItemId = null;
       const cfg = schedCfg();
-      const ev = cfg.arr().find(e => e.id === currentEventDetailId);
+      const ev = cfg.arr().find(e => e.id === eventId);
       if (!ev) return;
+      document.getElementById('event-assign-item-modal').querySelector('.modal-title').textContent = 'Quick Assign to ' + cfg.label;
+      document.getElementById('eai-event-name').textContent = ev.name;
+      document.getElementById('eai-search').value = '';
+      renderEAIItems('');
+      openModal('event-assign-item-modal');
+    }
 
-      const btn = document.querySelector('#event-assign-item-modal .modal-footer .btn-primary');
-      btn.textContent = 'Assigning...';
-      btn.disabled = true;
-
-      let count = 0;
-      let addedNames = [];
-      for (const cb of checkboxes) {
-        const item = data.items.find(i => i.id === cb.value);
-        if (item) {
-          item.eventId = ev.id;
-          item.status = 'Assigned';
-          await updateItemInSheets(item);
-          count++;
-          addedNames.push(item.name);
-        }
-      }
-
-      btn.textContent = 'Assign to Event';
-      btn.disabled = false;
-
-      const MAX_NAMES = 3;
-      const namesPreview = addedNames.slice(0, MAX_NAMES).join(', ') + (addedNames.length > MAX_NAMES ? '...' : '');
-      const msg = `${count} item(s) assigned to event "${ev.name}": ${namesPreview}`;
-      addHistory(msg, 'assign');
-      saveHistoryToSheets(msg, 'assign');
-      toast(`${count} items added to event ✓`, 'success');
-      closeModal('event-assign-item-modal');
-      const selectAll = document.getElementById('eai-select-all');
-      if (selectAll) selectAll.checked = false;
-
-      // Refresh event detail
-      openEventDetail(ev.id);
-      renderAll();
-    } (!i.assignedTo) &&
+    function renderEAIItems(search) {
+      // Show items that are Available (unassigned) and match the schedule kind org
+      const targetOrg = scheduleKind === 'route' ? 'flex' : 'flux';
+      const available = data.items.filter(i =>
+        i.status === 'Available' &&
+        (!i.assignedTo) &&
         (!i.eventId) &&
         i.org === targetOrg &&
         (i.name.toLowerCase().includes(search.toLowerCase()) || i.barcode.toLowerCase().includes(search.toLowerCase()))
