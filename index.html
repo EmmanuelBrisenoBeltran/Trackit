@@ -3884,6 +3884,10 @@
         
         const allPersonnel = [...managers, ...assignedWorkers];
 
+        const isMasterChief = (w) => {
+          return (w.role || '').toLowerCase().includes('master chief');
+        };
+
         const isLeader = (w) => {
           const r = (w.role || '').toLowerCase();
           return r.includes('manager') || r.includes('lead') || r.includes('clerk');
@@ -3913,10 +3917,11 @@
         </div>
       </div>
       ${allPersonnel.length ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
-        ${allPersonnel.slice(0, 4).map(w => isLeader(w) ? 
-          `<span style="font-size:11px;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:500;" title="Leadership">👑 ${w.fname} ${w.lname}</span>` : 
-          `<span style="font-size:11px;background:var(--bg3);color:var(--text2);padding:2px 8px;border-radius:20px;" title="Worker">👷 ${w.fname} ${w.lname}</span>`
-        ).join('')}
+        ${allPersonnel.slice(0, 4).map(w => {
+          if (isMasterChief(w)) return `<span style="font-size:11px;background:var(--accent-dark);color:var(--accent);padding:2px 8px;border-radius:20px;font-weight:700;border:1px solid var(--accent);" title="Master Chief">⭐ ${w.fname} ${w.lname}</span>`;
+          if (isLeader(w)) return `<span style="font-size:11px;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;font-weight:500;" title="Leadership">👑 ${w.fname} ${w.lname}</span>`;
+          return `<span style="font-size:11px;background:var(--bg3);color:var(--text2);padding:2px 8px;border-radius:20px;" title="Worker">👷 ${w.fname} ${w.lname}</span>`;
+        }).join('')}
         ${allPersonnel.length > 4 ? `<span style="font-size:11px;color:var(--text3);padding:4px 0;">+${allPersonnel.length - 4} more</span>` : ''}
       </div>` : ''}
     </div>`;
