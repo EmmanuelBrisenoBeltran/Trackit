@@ -1394,7 +1394,6 @@
                   <th>Location</th>
                   <th>Qty</th>
                   <th>Status</th>
-                  <th>Assigned To</th>
                 </tr>
               </thead>
               <tbody id="items-tbody"></tbody>
@@ -2440,12 +2439,41 @@
       const loc = document.getElementById('filter-loc-items')?.value || '';
       const term = searchTerm || document.getElementById('global-search')?.value || '';
 
+      // 1. Filter out archived, non-matching orgs, and child bulk items to get master items only
       let items = data.items.filter(item => {
         if (item.status === 'Archived') return false;
         if (!orgMatches(item.org)) return false;
+        // Skip child bulk items so they don't appear as duplicate rows
+        if (item.isBulk && (item.assignedTo || item.eventId)) return false;
+        return true;
+      });
+
+      // 2. Enhance master items with total quantities and a combined status
+      items = items.map(item => {
+        let displayQuantity = item.quantity || 1;
+        let displayStatus = item.status;
+        if (item.isBulk) {
+           const allFamily = data.items.filter(i => i.barcode === item.barcode && i.isBulk && i.status !== 'Archived');
+           const totalQty = allFamily.reduce((sum, i) => sum + (i.quantity || 0), 0);
+           const assignedQty = allFamily.filter(i => i.assignedTo || i.eventId).reduce((sum, i) => sum + (i.quantity || 0), 0);
+           displayQuantity = totalQty;
+           
+           if (assignedQty > 0 && assignedQty < totalQty) {
+              displayStatus = 'Available'; // Partially assigned
+           } else if (assignedQty === totalQty && totalQty > 0) {
+              displayStatus = 'Assigned'; // Fully assigned
+           } else if (totalQty === 0) {
+              displayStatus = 'Out of Stock';
+           }
+        }
+        return { ...item, displayQuantity, displayStatus };
+      });
+
+      // 3. Apply user filters
+      items = items.filter(item => {
         const matchGlobal = !globalLocationFilter || item.location === globalLocationFilter;
         const matchCat = !cat || item.category === cat;
-        const matchSt = !status || item.status === status;
+        const matchSt = !status || item.displayStatus === status;
         const matchLoc = !loc || item.location === loc;
         const matchTerm = !term || item.name.toLowerCase().includes(term.toLowerCase()) || item.barcode.toLowerCase().includes(term.toLowerCase());
         return matchGlobal && matchCat && matchSt && matchLoc && matchTerm;
@@ -2455,25 +2483,24 @@
 
       const tbody = document.getElementById('items-tbody');
       if (!items.length) {
-        tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">▦</div><div class="empty-title">No items found</div><div class="empty-sub">Try adjusting your filters</div></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">▦</div><div class="empty-title">No items found</div><div class="empty-sub">Try adjusting your filters</div></div></td></tr>`;
         return;
       }
 
       tbody.innerHTML = items.map(item => {
-        const worker = item.assignedTo ? data.workers.find(w => w.id === item.assignedTo) : null;
         const loc = data.locations.find(l => l.id === item.location);
         return `<tr onclick="openItemDetail('${item.id}')">
       <td>${item.name}</td>
-      <td><span class="mono">${item.barcode}</span>${item.uid ? `<div style="font-size:10px;color:var(--accent);margin-top:2px;">${item.uidType}: ${item.uid}</div>` : ''}</td>
+      <td>
+        <span class="mono">${item.barcode}</span>
+        ${item.serial ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">SN: <span style="color:var(--accent);">${item.serial}</span></div>` : ''}
+        ${item.uid ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">${item.uidType || 'UID'}: <span style="color:var(--accent);">${item.uid}</span></div>` : ''}
+      </td>
       <td>${item.isBulk ? '<span class="cat-chip" style="background:rgba(30,136,229,0.1);color:var(--blue);border:1px solid rgba(30,136,229,0.2);">Bulk</span>' : '<span class="cat-chip" style="background:rgba(158,158,158,0.1);color:var(--text2);">Unit</span>'}</td>
       <td><span class="cat-chip">${item.category}</span></td>
       <td>${loc ? loc.name : '—'}</td>
-      <td style="font-weight:600;color:var(--text1);">${item.isBulk ? item.quantity : '1'}</td>
-      <td>${statusBadge(item.status)}</td>
-      <td>
-        ${worker ? `<span style="font-size:12px;">${worker.fname} ${worker.lname}</span>${item.isBulk ? `<div style="font-size:10px;color:var(--text3);margin-top:2px;">${item.quantity} qty</div>` : ''}` : '<span style="color:var(--text3)">—</span>'}
-        ${item.eventId ? (() => { const ev = data.events.find(e => e.id === item.eventId) || data.routes.find(r => r.id === item.eventId); return ev ? `<div style="font-size:10px;color:var(--green);margin-top:2px;">◆ ${ev.name}</div>` : ''; })() : ''}
-      </td>
+      <td style="font-weight:600;color:var(--text1);">${item.isBulk ? item.displayQuantity : '1'}</td>
+      <td>${statusBadge(item.displayStatus)}</td>
     </tr>`;
       }).join('');
     }
@@ -3032,15 +3059,35 @@
       }, 50);
 
       let activeCheckoutsHTML = '';
-      if (item.isBulk && !item.assignedTo) {
-        const checkouts = data.items.filter(i => i.barcode === item.barcode && i.isBulk && i.assignedTo && i.status === 'Assigned');
+      let totalQty = item.quantity;
+      let displayStatus = item.status;
+
+      if (item.isBulk) {
+        const allFamily = data.items.filter(i => i.barcode === item.barcode && i.isBulk && i.status !== 'Archived');
+        totalQty = allFamily.reduce((sum, i) => sum + (i.quantity || 0), 0);
+        const assignedQty = allFamily.filter(i => i.assignedTo || i.eventId).reduce((sum, i) => sum + (i.quantity || 0), 0);
+        
+        if (assignedQty > 0 && assignedQty < totalQty) {
+          displayStatus = 'Available';
+        } else if (assignedQty === totalQty && totalQty > 0) {
+          displayStatus = 'Assigned';
+        } else if (totalQty === 0) {
+          displayStatus = 'Out of Stock';
+        }
+
+        const checkouts = allFamily.filter(i => i.assignedTo || i.eventId);
         if (checkouts.length) {
           activeCheckoutsHTML = `<div class="detail-row" style="flex-direction:column;align-items:flex-start;gap:8px;"><span class="detail-key">Active Assignments</span>
       <div style="background:var(--bg2);border-radius:4px;width:100%;">
         ${checkouts.map(chk => {
-            const w = data.workers.find(wk => wk.id === chk.assignedTo);
+            const w = chk.assignedTo ? data.workers.find(wk => wk.id === chk.assignedTo) : null;
+            const ev = chk.eventId ? (data.events.find(e => e.id === chk.eventId) || data.routes.find(r => r.id === chk.eventId)) : null;
+            let assigneeName = 'Unknown';
+            if (w) assigneeName = `${w.fname} ${w.lname}`;
+            else if (ev) assigneeName = `◆ ${ev.name}`;
+            
             return `<div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-             <span style="font-size:13px;font-weight:600;">${w ? w.fname + ' ' + w.lname : 'Unknown'}</span>
+             <span style="font-size:13px;font-weight:600;${ev ? 'color:var(--green);' : ''}">${assigneeName}</span>
              <div style="display:flex;align-items:center;gap:12px;">
                 <span style="font-size:12px;color:var(--text3);">${chk.quantity} units</span>
                 <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;" onclick="unassignById('${chk.id}');closeOverlay();">Return</button>
@@ -3055,17 +3102,18 @@
 
       document.getElementById('od-details').innerHTML = `
     <div class="detail-row"><span class="detail-key">Type</span><span class="detail-val">${item.isBulk ? '<span style="color:var(--blue);font-weight:600;">Bulk / Consumable Item</span>' : 'Unit Item'}</span></div>
-    ${item.isBulk && !item.assignedTo ? `<div class="detail-row"><span class="detail-key">Current Stock</span><span class="detail-val">${item.quantity} units</span></div>` : ''}
+    ${item.isBulk ? `<div class="detail-row"><span class="detail-key">Total Stock</span><span class="detail-val">${totalQty} units</span></div>` : ''}
+    ${item.isBulk ? `<div class="detail-row"><span class="detail-key">Available</span><span class="detail-val">${item.quantity} units</span></div>` : ''}
     <div class="detail-row"><span class="detail-key">Category</span><span class="detail-val">${item.category}</span></div>
     <div class="detail-row"><span class="detail-key">Location</span><span class="detail-val">${loc ? loc.name : '—'}</span></div>
     <div class="detail-row"><span class="detail-key">Brand</span><span class="detail-val">${item.brand || '—'}</span></div>
     <div class="detail-row"><span class="detail-key">Serial</span><span class="detail-val mono">${item.serial || '—'}</span></div>
     ${item.uidType ? `<div class="detail-row"><span class="detail-key">${item.uidType}</span><span class="detail-val mono" style="color:var(--accent);">${item.uid || '—'}</span></div>` : ''}
     <div class="detail-row"><span class="detail-key">Condition</span><span class="detail-val">${item.condition}</span></div>
-    <div class="detail-row"><span class="detail-key">Status</span><span class="detail-val">${statusBadge(item.status)}</span></div>
-    ${(!item.isBulk || item.assignedTo) ? `<div class="detail-row"><span class="detail-key">Assigned To</span><span class="detail-val">${worker ? worker.fname + ' ' + worker.lname : '—'}</span></div>` : activeCheckoutsHTML}
+    <div class="detail-row"><span class="detail-key">Status</span><span class="detail-val">${statusBadge(displayStatus)}</span></div>
+    ${!item.isBulk ? `<div class="detail-row"><span class="detail-key">Assigned To</span><span class="detail-val">${worker ? worker.fname + ' ' + worker.lname : '—'}</span></div>` : activeCheckoutsHTML}
     <div class="detail-row"><span class="detail-key">Notes</span><span class="detail-val">${item.notes || '—'}</span></div>
-    ${item.eventId ? (() => { const ev = data.events.find(e => e.id === item.eventId) || data.routes.find(r => r.id === item.eventId); return ev ? `<div class="detail-row"><span class="detail-key">Event / Route</span><span class="detail-val" style="color:var(--green);">◆ ${ev.name}</span></div>` : ''; })() : ''}
+    ${(!item.isBulk && item.eventId) ? (() => { const ev = data.events.find(e => e.id === item.eventId) || data.routes.find(r => r.id === item.eventId); return ev ? `<div class="detail-row"><span class="detail-key">Event / Route</span><span class="detail-val" style="color:var(--green);">◆ ${ev.name}</span></div>` : ''; })() : ''}
     <div class="detail-row"><span class="detail-key">Added</span><span class="detail-val">${item.created || '—'}</span></div>
   `;
 
@@ -4165,7 +4213,7 @@
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <div class="section-title" style="margin-bottom:0;">Items Assigned</div>
-      ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" onclick="openEventItemAssign('${ev.id}')">Quick Assign ⚡</button>` : ''}
+      ${ev.status !== 'Closed' ? `<button class="btn btn-ghost btn-sm" onclick="openMassAssignModal('${ev.id}', scheduleKind)">Quick Assign ⚡</button>` : ''}
     </div>
     <div id="event-detail-items">
       ${renderEventItems(ev, assignedItems)}
