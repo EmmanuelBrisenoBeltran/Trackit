@@ -1452,12 +1452,6 @@
 
         <!-- SCAN -->
         <div class="view" id="view-scan">
-          <div class="tabs">
-            <button class="tab active" id="tab-lookup" onclick="setScanMode('lookup',this)">Look Up</button>
-            <button class="tab" id="tab-quickassign" onclick="setScanMode('quickassign',this)">Quick Assign ⚡</button>
-            <button class="tab" id="tab-quickreturn" onclick="setScanMode('quickreturn',this)">Quick Return ↩️</button>
-          </div>
-
           <!-- LOOK UP MODE -->
           <div id="scan-mode-lookup">
             <div class="scan-area" id="scan-area">
@@ -1479,134 +1473,6 @@
               </div>
             </div>
           </div>
-
-          <!-- QUICK ASSIGN MODE -->
-          <div id="scan-mode-quickassign" style="display:none;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-
-              <!-- STEP 1: ITEM -->
-              <div class="table-wrap" id="qa-item-panel">
-                <div class="table-header">
-                  <span class="table-title">Step 1 — Scan Item</span>
-                  <span id="qa-item-status" style="font-size:11px;color:var(--text3);">Waiting...</span>
-                </div>
-                <div style="padding:20px;text-align:center;" id="qa-item-body">
-                  <div style="font-size:32px;opacity:0.3;margin-bottom:12px;">⊡</div>
-                  <div style="font-size:13px;color:var(--text3);">Scan item barcode</div>
-                  <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;">
-                    <button class="btn btn-primary btn-sm" onclick="startQuickScan('item')">Scan</button>
-                    <button class="btn btn-ghost btn-sm" onclick="showManualQA('item')">Manual</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- STEP 2: WORKER -->
-              <div class="table-wrap" id="qa-worker-panel" style="opacity:0.4;">
-                <div class="table-header">
-                  <span class="table-title">Step 2 — Scan Worker</span>
-                  <span id="qa-worker-status" style="font-size:11px;color:var(--text3);">Waiting...</span>
-                </div>
-                <div style="padding:20px;text-align:center;" id="qa-worker-body">
-                  <div style="font-size:32px;opacity:0.3;margin-bottom:12px;">◈</div>
-                  <div style="font-size:13px;color:var(--text3);">Scan worker badge</div>
-                  <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;">
-                    <button class="btn btn-primary btn-sm" onclick="startQuickScan('worker')" disabled
-                      id="qa-worker-scan-btn">Scan</button>
-                    <button class="btn btn-ghost btn-sm" onclick="showManualQA('worker')" disabled
-                      id="qa-worker-manual-btn">Manual</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- QR READER FOR QUICK ASSIGN -->
-            <div id="qr-reader-qa"
-              style="display:none;max-width:360px;margin:0 auto 16px;border-radius:10px;overflow:hidden;"></div>
-
-            <!-- MANUAL INPUT FOR QUICK ASSIGN -->
-            <div id="qa-manual-panel" style="display:none;" class="table-wrap">
-              <div class="table-header"><span class="table-title" id="qa-manual-title">Enter barcode</span></div>
-              <div style="padding:16px;display:flex;gap:8px;">
-                <input class="form-input" id="qa-manual-input" placeholder="Enter barcode..." style="flex:1;">
-                <button class="btn btn-primary" onclick="submitManualQA()">Confirm</button>
-              </div>
-            </div>
-
-            <!-- CONFIRM ASSIGN -->
-            <div id="qa-confirm-panel" style="display:none;" class="table-wrap">
-              <div class="table-header"><span class="table-title" style="color:var(--accent);">✓ Ready to Assign</span>
-              </div>
-              <div style="padding:20px;">
-                <div
-                  style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;margin-bottom:20px;">
-                  <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;text-align:center;">
-                    <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">ITEM</div>
-                    <div style="font-size:14px;font-weight:600;" id="qa-confirm-item-name">—</div>
-                    <div class="mono" style="margin-top:4px;" id="qa-confirm-item-code">—</div>
-                  </div>
-                  <div style="font-size:24px;color:var(--accent);">→</div>
-                  <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;text-align:center;">
-                    <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">WORKER</div>
-                    <div style="font-size:14px;font-weight:600;" id="qa-confirm-worker-name">—</div>
-                    <div class="mono" style="margin-top:4px;" id="qa-confirm-worker-code">—</div>
-                  </div>
-                </div>
-                <div style="display:flex;gap:8px;justify-content:center;">
-                  <button class="btn btn-primary" onclick="confirmQuickAssign()">Confirm Assignment</button>
-                  <button class="btn btn-ghost" onclick="resetQuickAssign()">Start Over</button>
-                </div>
-              </div>
-            </div>
-
-            <div
-              style="margin-top:16px;padding:12px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text3);">
-              Worker barcodes are printed from the worker profile — click any worker card and use "Print Badge".
-            </div>
-          </div>
-
-          <!-- QUICK RETURN MODE -->
-          <div id="scan-mode-quickreturn" style="display:none;">
-            <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:20px;">
-              <div class="table-wrap" id="qr-item-panel">
-                <div class="table-header">
-                  <span class="table-title">Scan Item(s) to Return</span>
-                  <span id="qr-item-status" style="font-size:11px;color:var(--text3);">Waiting...</span>
-                </div>
-                <div style="padding:20px;text-align:center;" id="qr-item-body">
-                  <div style="font-size:32px;opacity:0.3;margin-bottom:12px;">⏎</div>
-                  <div style="font-size:13px;color:var(--text3);">Scan assigned items to return them</div>
-                  <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;">
-                    <button class="btn btn-primary btn-sm" onclick="startQuickReturnScan()">Scan</button>
-                    <button class="btn btn-ghost btn-sm" onclick="showManualQR()">Manual</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div id="qr-reader-qr"
-              style="display:none;max-width:360px;margin:0 auto 16px;border-radius:10px;overflow:hidden;"></div>
-
-            <div id="qr-manual-panel" style="display:none;" class="table-wrap">
-              <div class="table-header"><span class="table-title">Enter item barcode</span></div>
-              <div style="padding:16px;display:flex;gap:8px;">
-                <input class="form-input" id="qr-manual-input" placeholder="Enter barcode..." style="flex:1;">
-                <button class="btn btn-primary" onclick="submitManualQR()">Confirm</button>
-              </div>
-            </div>
-
-            <div id="qr-confirm-panel" style="display:none;" class="table-wrap">
-              <div class="table-header"><span class="table-title" style="color:var(--accent);">✓ Ready to Return</span>
-              </div>
-              <div style="padding:20px;text-align:center;">
-                <div style="font-size:16px;font-weight:600;margin-bottom:12px;" id="qr-confirm-item-name">—</div>
-                <div style="display:flex;gap:8px;justify-content:center;">
-                  <button class="btn btn-primary" onclick="confirmQuickReturn()">Confirm Return</button>
-                  <button class="btn btn-ghost" onclick="resetQuickReturn()">Start Over</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
         </div>
 
         <!-- HISTORY -->
@@ -1883,33 +1749,33 @@
     </div>
   </div>
 
-  <!-- EVENT ASSIGN ITEM MODAL -->
-  <div class="modal-backdrop" id="event-assign-item-modal">
+  <!-- MASS ASSIGN MODAL -->
+  <div class="modal-backdrop" id="mass-assign-modal">
     <div class="modal" style="width:460px;">
       <div class="modal-header">
-        <span class="modal-title">Assign Item to Event</span>
-        <button class="modal-close" onclick="closeModal('event-assign-item-modal')">✕</button>
+        <span class="modal-title" id="mai-title">Assign Items</span>
+        <button class="modal-close" onclick="closeModal('mass-assign-modal')">✕</button>
       </div>
       <div class="modal-body">
         <div
           style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:13px;">
-          <span style="color:var(--text3);">Event: </span>
-          <span style="font-weight:600;" id="eai-event-name">—</span>
+          <span style="color:var(--text3);" id="mai-target-label">Target: </span>
+          <span style="font-weight:600;" id="mai-target-name">—</span>
         </div>
-        <div class="section-title">Select Item to Assign to this Event</div>
+        <div class="section-title">Select Items to Assign</div>
         <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-          <input class="form-input" id="eai-search" placeholder="Search items..." oninput="filterEAIItems(this.value)" style="flex:1; margin-right: 10px;">
+          <input class="form-input" id="mai-search" placeholder="Search items..." oninput="filterMAIItems(this.value)" style="flex:1; margin-right: 10px;">
           <label style="font-size: 13px; display:flex; align-items:center; cursor:pointer;">
-             <input type="checkbox" id="eai-select-all" onclick="toggleAllEAIItems(this)" style="margin-right:4px;">
+             <input type="checkbox" id="mai-select-all" onclick="toggleAllMAIItems(this)" style="margin-right:4px;">
              Select All
           </label>
         </div>
-        <div id="eai-items-list"
+        <div id="mai-items-list"
           style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="closeModal('event-assign-item-modal')">Cancel</button>
-        <button class="btn btn-primary" onclick="confirmEventItemAssign()">Assign to Event</button>
+        <button class="btn btn-ghost" onclick="closeModal('mass-assign-modal')">Cancel</button>
+        <button class="btn btn-primary" id="mai-confirm-btn" onclick="confirmMassAssign()">Assign Items</button>
       </div>
     </div>
   </div>
@@ -3237,9 +3103,14 @@
       document.getElementById('od-history').innerHTML = items.length
         ? items.map(item => `<div class="history-item">
         <div class="history-dot" style="background:var(--blue)"></div>
-        <div class="history-body">
-          <div class="history-action" style="font-size:12px;">${item.name}</div>
-          <div class="history-meta">${item.barcode} · ${item.category}</div>
+        <div class="history-body" style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div>
+              <div class="history-action" style="font-size:12px;">${item.name}</div>
+              <div class="history-meta">${item.barcode} · ${item.category}</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="color:var(--orange);" onclick="event.stopPropagation(); unassignById('${item.id}');">Return</button>
+          </div>
         </div>
       </div>`).join('')
         : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No items assigned</div>';
@@ -3248,6 +3119,17 @@
       editBtn.style.display = '';
       editBtn.textContent = 'Edit Worker';
       editBtn.onclick = () => { closeOverlay(); openWorkerModal(workerId); };
+      
+      let assignItemsBtn = document.getElementById('od-assign-items-btn');
+      if (!assignItemsBtn) {
+        assignItemsBtn = document.createElement('button');
+        assignItemsBtn.id = 'od-assign-items-btn';
+        assignItemsBtn.className = 'btn btn-primary btn-sm';
+        document.querySelector('.overlay-body > div[style*="margin-top:20px"]').insertBefore(assignItemsBtn, editBtn);
+      }
+      assignItemsBtn.style.display = '';
+      assignItemsBtn.textContent = 'Assign Items ⚡';
+      assignItemsBtn.onclick = () => { closeOverlay(); openMassAssignModal(workerId, 'worker'); };
       document.getElementById('od-unassign-btn').style.display = 'none';
       const printBtn = document.getElementById('od-print-btn');
       printBtn.style.display = '';
@@ -3272,6 +3154,8 @@
       document.getElementById('od-delete-btn').style.display = 'none';
       const editBtn = document.getElementById('od-edit-btn');
       if (editBtn) editBtn.style.display = 'none';
+      const assignItemsBtn = document.getElementById('od-assign-items-btn');
+      if (assignItemsBtn) assignItemsBtn.style.display = 'none';
     }
 
     // ─── QR CODE ─────────────────────────────────────────────────
@@ -4360,38 +4244,57 @@
       }).join('');
     }
 
-    function openEventItemAssign(eventId) {
-      currentEventDetailId = eventId;
-      selectedEAIItemId = null;
-      const cfg = schedCfg();
-      const ev = cfg.arr().find(e => e.id === eventId);
-      if (!ev) return;
-      document.getElementById('event-assign-item-modal').querySelector('.modal-title').textContent = 'Quick Assign to ' + cfg.label;
-      document.getElementById('eai-event-name').textContent = ev.name;
-      document.getElementById('eai-search').value = '';
-      renderEAIItems('');
-      openModal('event-assign-item-modal');
+    let currentMassAssignTarget = null;
+    let currentMassAssignType = null;
+
+    function openMassAssignModal(targetId, type) {
+      currentMassAssignTarget = targetId;
+      currentMassAssignType = type;
+      const modal = document.getElementById('mass-assign-modal');
+      
+      let targetName = '';
+      if (type === 'event' || type === 'route') {
+         const cfg = schedCfg();
+         const ev = cfg.arr().find(e => e.id === targetId);
+         if (!ev) return;
+         targetName = ev.name;
+         modal.querySelector('.modal-title').textContent = 'Quick Assign to ' + cfg.label;
+         document.getElementById('mai-target-label').textContent = cfg.label + ': ';
+         document.getElementById('mai-confirm-btn').textContent = 'Assign to ' + cfg.label;
+      } else if (type === 'worker') {
+         const worker = data.workers.find(w => w.id === targetId);
+         if (!worker) return;
+         targetName = `${worker.fname} ${worker.lname}`;
+         modal.querySelector('.modal-title').textContent = 'Quick Assign to Worker';
+         document.getElementById('mai-target-label').textContent = 'Worker: ';
+         document.getElementById('mai-confirm-btn').textContent = 'Assign to Worker';
+      }
+
+      document.getElementById('mai-target-name').textContent = targetName;
+      document.getElementById('mai-search').value = '';
+      renderMAIItems('');
+      openModal('mass-assign-modal');
     }
 
-    function renderEAIItems(search) {
-      // Show items that are Available (unassigned) and match the schedule kind org
-      const targetOrg = scheduleKind === 'route' ? 'flex' : 'flux';
+    function renderMAIItems(search) {
+      const targetOrg = (currentMassAssignType === 'route') ? 'flex' : (currentMassAssignType === 'event' ? 'flux' : null);
+      
       const available = data.items.filter(i =>
         i.status === 'Available' &&
         (!i.assignedTo) &&
         (!i.eventId) &&
-        i.org === targetOrg &&
+        (!targetOrg || i.org === targetOrg) &&
         (i.name.toLowerCase().includes(search.toLowerCase()) || i.barcode.toLowerCase().includes(search.toLowerCase()))
       );
-      const list = document.getElementById('eai-items-list');
+      const list = document.getElementById('mai-items-list');
       if (!available.length) {
-        list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">No available items for this organization (' + targetOrg + ')</div>';
+        list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">No available items found</div>';
         return;
       }
       list.innerHTML = available.map(item => {
         const loc = data.locations.find(l => l.id === item.location);
-        return `<div class="assign-item" onclick="toggleEAIItem('${item.id}', this, event)">
-      <input type="checkbox" class="eai-checkbox" value="${item.id}" onclick="event.stopPropagation()">
+        return `<div class="assign-item" onclick="toggleMAIItem('${item.id}', this, event)">
+      <input type="checkbox" class="mai-checkbox" value="${item.id}" onclick="event.stopPropagation()">
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:500;">${item.name} ${item.isBulk ? `<span class="badge badge-blue" style="font-size:10px;">${item.quantity} units</span>` : ''}</div>
         <div style="font-size:11px;color:var(--text3);">
@@ -4399,36 +4302,33 @@
         </div>
         <div class="mono" style="font-size:10px;">${item.barcode}</div>
       </div>
-      ${item.isBulk ? `<div style="display:flex;flex-direction:column;align-items:flex-end;" onclick="event.stopPropagation()"><span style="font-size:10px;color:var(--text3);margin-bottom:2px;">Qty to Assign</span><input type="number" id="eai-qty-${item.id}" class="form-input" style="width:60px;padding:4px;font-size:12px;text-align:center;" min="1" max="${item.quantity}" value="${item.quantity}" onclick="event.stopPropagation()"></div>` : ''}
+      ${item.isBulk ? `<div style="display:flex;flex-direction:column;align-items:flex-end;" onclick="event.stopPropagation()"><span style="font-size:10px;color:var(--text3);margin-bottom:2px;">Qty to Assign</span><input type="number" id="mai-qty-${item.id}" class="form-input" style="width:60px;padding:4px;font-size:12px;text-align:center;" min="1" max="${item.quantity}" value="${item.quantity}" onclick="event.stopPropagation()"></div>` : ''}
     </div>`;
       }).join('');
     }
 
-    function toggleEAIItem(itemId, el, ev) {
+    function toggleMAIItem(itemId, el, ev) {
       const cb = el.querySelector('input[type="checkbox"]');
       if (ev && ev.target === cb) return;
       cb.checked = !cb.checked;
     }
 
-    function toggleAllEAIItems(el) {
-      const checkboxes = document.querySelectorAll('#eai-items-list input[type="checkbox"]');
+    function toggleAllMAIItems(el) {
+      const checkboxes = document.querySelectorAll('#mai-items-list input[type="checkbox"]');
       checkboxes.forEach(cb => cb.checked = el.checked);
     }
 
-    function filterEAIItems(val) { 
-      renderEAIItems(val); 
-      const selectAll = document.getElementById('eai-select-all');
+    function filterMAIItems(val) { 
+      renderMAIItems(val); 
+      const selectAll = document.getElementById('mai-select-all');
       if (selectAll) selectAll.checked = false;
     }
 
-    async function confirmEventItemAssign() {
-      const checkboxes = Array.from(document.querySelectorAll('#eai-items-list input[type="checkbox"]:checked'));
+    async function confirmMassAssign() {
+      const checkboxes = Array.from(document.querySelectorAll('#mai-items-list input[type="checkbox"]:checked'));
       if (checkboxes.length === 0) { toast('Please select at least one item', 'error'); return; }
-      const cfg = schedCfg();
-      const ev = cfg.arr().find(e => e.id === currentEventDetailId);
-      if (!ev) return;
-
-      const btn = document.querySelector('#event-assign-item-modal .modal-footer .btn-primary');
+      
+      const btn = document.getElementById('mai-confirm-btn');
       if (btn) {
         btn.textContent = 'Assigning...';
         btn.disabled = true;
@@ -4436,11 +4336,13 @@
 
       let count = 0;
       let addedNames = [];
+      let targetNameStr = '';
+
       for (const cb of checkboxes) {
         const item = data.items.find(i => i.id === cb.value);
         if (item) {
           if (item.isBulk) {
-            const qtyInput = document.getElementById(`eai-qty-${item.id}`);
+            const qtyInput = document.getElementById(`mai-qty-${item.id}`);
             const qtyToAssign = qtyInput ? parseInt(qtyInput.value) : item.quantity;
             if (isNaN(qtyToAssign) || qtyToAssign <= 0 || qtyToAssign > item.quantity) {
                toast(`Invalid quantity for ${item.name}`, 'error');
@@ -4454,15 +4356,28 @@
                const childId = 'ITM' + String(data.nextItemId++).padStart(3, '0');
                const childItem = {
                  ...item, id: childId, quantity: qtyToAssign,
-                 eventId: ev.id, status: 'Assigned', created: new Date().toISOString().split('T')[0]
+                 status: 'Assigned', created: new Date().toISOString().split('T')[0]
                };
+               if (currentMassAssignType === 'worker') {
+                  childItem.assignedTo = currentMassAssignTarget;
+                  targetNameStr = 'Worker';
+               } else {
+                  childItem.eventId = currentMassAssignTarget;
+                  targetNameStr = 'Event/Route';
+               }
                data.items.push(childItem);
                await saveItemToSheets(childItem);
                count++;
                addedNames.push(item.name);
             } else {
                // Assign all
-               item.eventId = ev.id;
+               if (currentMassAssignType === 'worker') {
+                  item.assignedTo = currentMassAssignTarget;
+                  targetNameStr = 'Worker';
+               } else {
+                  item.eventId = currentMassAssignTarget;
+                  targetNameStr = 'Event/Route';
+               }
                item.status = 'Assigned';
                await updateItemInSheets(item);
                count++;
@@ -4470,7 +4385,13 @@
             }
           } else {
             // Non-bulk item
-            item.eventId = ev.id;
+            if (currentMassAssignType === 'worker') {
+                item.assignedTo = currentMassAssignTarget;
+                targetNameStr = 'Worker';
+            } else {
+                item.eventId = currentMassAssignTarget;
+                targetNameStr = 'Event/Route';
+            }
             item.status = 'Assigned';
             await updateItemInSheets(item);
             count++;
@@ -4480,22 +4401,26 @@
       }
 
       if (btn) {
-        btn.textContent = 'Assign to Event';
+        btn.textContent = 'Assign Items';
         btn.disabled = false;
       }
 
       const MAX_NAMES = 3;
       const namesPreview = addedNames.slice(0, MAX_NAMES).join(', ') + (addedNames.length > MAX_NAMES ? '...' : '');
-      const msg = `${count} item(s) assigned to event "${ev.name}": ${namesPreview}`;
+      const msg = `${count} item(s) assigned to ${targetNameStr}: ${namesPreview}`;
       addHistory(msg, 'assign');
       saveHistoryToSheets(msg, 'assign');
-      toast(`${count} items added to event ✓`, 'success');
-      closeModal('event-assign-item-modal');
-      const selectAll = document.getElementById('eai-select-all');
+      toast(`${count} items added ✓`, 'success');
+      closeModal('mass-assign-modal');
+      const selectAll = document.getElementById('mai-select-all');
       if (selectAll) selectAll.checked = false;
 
-      // Refresh event detail
-      openEventDetail(ev.id);
+      // Refresh detail overlays
+      if (currentMassAssignType === 'worker') {
+          openWorkerDetail(currentMassAssignTarget);
+      } else {
+          openEventDetail(currentMassAssignTarget);
+      }
       renderAll();
     }
 
