@@ -3016,10 +3016,16 @@
       if (item.isBulk) {
         if (returningQty < item.quantity) {
           item.quantity -= returningQty;
-          const master = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
+          const master = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && !i.eventId && i.id !== item.id);
           if (master) {
             master.quantity += returningQty;
+            master.status = 'Available';
             updateItemInSheets(master);
+          } else {
+            const newMasterId = 'ITM' + String(data.nextItemId++).padStart(3, '0');
+            const newMaster = { ...item, id: newMasterId, quantity: returningQty, assignedTo: null, eventId: null, status: 'Available' };
+            data.items.push(newMaster);
+            saveItemToSheets(newMaster);
           }
           histMsg = `${returningQty}x ${item.name} partially returned from ${wName}${evSuffix}`;
           addHistory(histMsg, 'unassign');
@@ -3029,6 +3035,7 @@
           const master = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && !i.eventId && i.id !== item.id);
           if (master) {
             master.quantity += item.quantity;
+            master.status = 'Available';
             updateItemInSheets(master);
             item.status = 'Archived';
             item.quantity = 0;
@@ -3686,22 +3693,33 @@
           if (item.returningQty < item.quantity) {
             item.quantity -= item.returningQty;
             await updateItemInSheets(item);
-            const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
+            const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && !i.eventId && i.id !== item.id);
             if (masterItem) {
               masterItem.quantity += item.returningQty;
+              masterItem.status = 'Available';
               await updateItemInSheets(masterItem);
+            } else {
+              const newMasterId = 'ITM' + String(data.nextItemId++).padStart(3, '0');
+              const newMaster = { ...item, id: newMasterId, quantity: item.returningQty, assignedTo: null, eventId: null, status: 'Available' };
+              delete newMaster.returningQty;
+              data.items.push(newMaster);
+              await saveItemToSheets(newMaster);
             }
             msg = `${item.returningQty}x ${item.name} partially returned from ${wName}`;
           } else {
             item.assignedTo = null;
             item.eventId = null;
-            item.status = 'Archived';
-            item.quantity = 0;
-            await updateItemInSheets(item);
-            const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
+            const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && !i.eventId && i.id !== item.id);
             if (masterItem) {
               masterItem.quantity += item.returningQty;
+              masterItem.status = 'Available';
               await updateItemInSheets(masterItem);
+              item.status = 'Archived';
+              item.quantity = 0;
+              await updateItemInSheets(item);
+            } else {
+              item.status = 'Available';
+              await updateItemInSheets(item);
             }
             msg = `${item.returningQty}x ${item.name} completely returned to inventory from ${wName}`;
           }
@@ -4629,7 +4647,13 @@
         const masterItem = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && !i.eventId && i.id !== item.id);
         if (masterItem) {
           masterItem.quantity += item.quantity;
+          masterItem.status = 'Available';
           updateItemInSheets(masterItem);
+          item.eventId = null;
+          item.assignedTo = null;
+          item.status = 'Archived';
+          item.quantity = 0;
+          updateItemInSheets(item);
         } else {
           // If no master exists, we just unassign this one to become the master
           item.eventId = null;
@@ -4644,11 +4668,6 @@
           renderAll();
           return;
         }
-        item.eventId = null;
-        item.assignedTo = null;
-        item.status = 'Archived';
-        item.quantity = 0;
-        updateItemInSheets(item);
       } else {
         item.eventId = null;
         item.assignedTo = null;
