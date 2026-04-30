@@ -4456,8 +4456,11 @@
         const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) || i.barcode.toLowerCase().includes(search.toLowerCase());
         const matchesOrg = !targetOrg || i.org === targetOrg;
         
+        // Self-heal: If an item has no assignee/event but is stuck on 'Assigned', it's available
+        const actualStatus = (i.status === 'Assigned' && !i.assignedTo && !i.eventId) ? 'Available' : i.status;
+        
         // Is it a globally available item?
-        const isGlobalAvailable = i.status === 'Available' && !i.assignedTo && !i.eventId;
+        const isGlobalAvailable = actualStatus === 'Available' && !i.assignedTo && !i.eventId;
         
         // Is it a route-specific bulk/general item?
         const isRouteAvailable = currentMassAssignType === 'tech_in_route' && i.eventId === currentMassAssignSecondaryTarget && !i.assignedTo;
