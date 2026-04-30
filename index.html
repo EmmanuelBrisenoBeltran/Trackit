@@ -3026,15 +3026,18 @@
         } else {
           item.assignedTo = null;
           item.eventId = null;
-          item.status = 'Archived';
-          const master = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && i.id !== item.id);
+          const master = data.items.find(i => i.barcode === item.barcode && i.isBulk && !i.assignedTo && !i.eventId && i.id !== item.id);
           if (master) {
             master.quantity += item.quantity;
             updateItemInSheets(master);
+            item.status = 'Archived';
+            item.quantity = 0;
+          } else {
+            // No master exists, this item becomes the master again
+            item.status = 'Available';
           }
           const oldQty = item.quantity;
-          item.quantity = 0;
-          histMsg = `${oldQty}x ${item.name} unassigned from ${wName}${evSuffix}`;
+          histMsg = `${item.quantity > 0 ? item.quantity : 'All'}x ${item.name} unassigned from ${wName}${evSuffix}`;
           addHistory(histMsg, 'unassign');
         }
       } else {
@@ -4449,13 +4452,18 @@
     function renderMAIItems(search) {
       const targetOrg = (currentMassAssignType === 'route' || currentMassAssignType === 'tech_in_route' && schedCfg().label === 'Route') ? 'flex' : (currentMassAssignType === 'event' || currentMassAssignType === 'tech_in_route' && schedCfg().label === 'Event' ? 'flux' : null);
 
-      const available = data.items.filter(i =>
-        i.status === 'Available' &&
-        (!i.assignedTo) &&
-        (!i.eventId) &&
-        (!targetOrg || i.org === targetOrg) &&
-        (i.name.toLowerCase().includes(search.toLowerCase()) || i.barcode.toLowerCase().includes(search.toLowerCase()))
-      );
+      const available = data.items.filter(i => {
+        const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) || i.barcode.toLowerCase().includes(search.toLowerCase());
+        const matchesOrg = !targetOrg || i.org === targetOrg;
+        
+        // Is it a globally available item?
+        const isGlobalAvailable = i.status === 'Available' && !i.assignedTo && !i.eventId;
+        
+        // Is it a route-specific bulk/general item?
+        const isRouteAvailable = currentMassAssignType === 'tech_in_route' && i.eventId === currentMassAssignSecondaryTarget && !i.assignedTo;
+
+        return (isGlobalAvailable || isRouteAvailable) && matchesOrg && matchesSearch;
+      });
       const list = document.getElementById('mai-items-list');
       if (!available.length) {
         list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">No available items found</div>';
