@@ -71,7 +71,9 @@
     opts = opts || {};
     const body = Object.assign({ token: getToken() }, payload);
     const ctrl = new AbortController();
-    const t = setTimeout(function () { ctrl.abort(); }, opts.timeout || 20000);
+    // 45s: Apps Script en arranque frío puede tardar >20s con varias
+    // lecturas paralelas.
+    const t = setTimeout(function () { ctrl.abort(); }, opts.timeout || 45000);
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -95,7 +97,15 @@
   }
 
   window.sheetsGet = async function (sheet) {
-    const json = await apiCall({ action: 'read', sheet: sheet });
+    // Las lecturas son idempotentes: un reintento ante timeout/red evita
+    // abortar todo el sync por un fetch lento de Apps Script.
+    let json;
+    try {
+      json = await apiCall({ action: 'read', sheet: sheet });
+    } catch (err) {
+      if (err && err.message === 'Unauthorized') throw err;
+      json = await apiCall({ action: 'read', sheet: sheet });
+    }
     if (json && json.error) throw new Error(json.error);
     return (json && json.rows) || [];
   };
