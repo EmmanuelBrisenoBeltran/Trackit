@@ -1990,7 +1990,9 @@
         <button class="btn btn-primary btn-sm" id="od-assign-btn" onclick="assignFromDetail()">Assign to Worker</button>
         <button class="btn btn-ghost btn-sm" id="od-print-btn" onclick="printDetailBarcode()">Print Label</button>
         <button class="btn btn-danger btn-sm" id="od-unassign-btn" onclick="unassignItem()">Unassign</button>
-        <button class="btn btn-danger btn-sm" id="od-delete-btn" style="display:none;background:var(--red);">Delete</button>
+        <!-- color:#fff explícito: btn-danger pinta el texto rojo y con el
+             fondo rojo sólido quedaba rojo-sobre-rojo (botón "sin letras"). -->
+        <button class="btn btn-danger btn-sm" id="od-delete-btn" style="display:none;background:var(--red);color:#fff;">Delete</button>
       </div>
       <div style="margin-top:24px;">
         <div class="section-title">Item History</div>
