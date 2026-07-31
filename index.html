@@ -2611,6 +2611,7 @@
     function openLocationDetail(locId) {
       const loc = data.locations.find(l => l.id === locId);
       if (!loc) return;
+      resetOverlayButtons();
 
       const icons = { Warehouse: '🏭', Office: '🏢', Store: '🏪', 'Field Site': '🏗️', Other: '📍' };
       const workers = data.workers.filter(w => w.location === locId);
@@ -2666,15 +2667,14 @@
       massBtn.style.display = '';
       massBtn.textContent = 'Assign Items ⚡';
       massBtn.onclick = () => { closeOverlay(); openMassAssignModal(locId); };
-      document.getElementById('od-unassign-btn').style.display = 'none';
       const locPrintBtn = document.getElementById('od-print-btn');
       locPrintBtn.style.display = '';
       locPrintBtn.textContent = 'Print Venue Label';
       locPrintBtn.onclick = () => printLocationLabel(locId);
-      document.getElementById('od-delete-btn').style.display = '';
-      document.getElementById('od-delete-btn').onclick = () => deleteLocation(locId);
-      const closeEvBtn = document.getElementById('close-event-btn');
-      if(closeEvBtn) closeEvBtn.style.display = 'none';
+      const locDeleteBtn = document.getElementById('od-delete-btn');
+      locDeleteBtn.style.display = '';
+      locDeleteBtn.textContent = 'Delete';
+      locDeleteBtn.onclick = () => deleteLocation(locId);
 
       document.getElementById('od-history').innerHTML = '';
       document.getElementById('item-detail').classList.add('open');
@@ -3166,6 +3166,7 @@
       detailItemId = itemId;
       const item = data.items.find(i => i.id === itemId);
       if (!item) return;
+      resetOverlayButtons();
       const loc = data.locations.find(l => l.id === item.location);
       const mgrName = loc ? venueCore.managerName(venueState(), loc) : null;
 
@@ -3234,22 +3235,27 @@
 
       const odAssignBtn = document.getElementById('od-assign-btn');
       odAssignBtn.textContent = item.status === 'Assigned' ? 'Transfer to Venue' : 'Assign to Venue';
-      // Otros detalles (venue/evento) pisan onclick; lo restauramos aquí.
       odAssignBtn.onclick = () => assignFromDetail();
       odAssignBtn.style.display = '';
       const printBtnItem = document.getElementById('od-print-btn');
       printBtnItem.style.display = '';
       printBtnItem.textContent = 'Print Label';
       printBtnItem.onclick = () => printDetailBarcode();
-      document.getElementById('od-unassign-btn').style.display = '';
-      document.getElementById('od-delete-btn').style.display = '';
-      document.getElementById('od-delete-btn').onclick = () => deleteItem(itemId);
+      const unassignBtnItem = document.getElementById('od-unassign-btn');
+      unassignBtnItem.style.display = '';
+      unassignBtnItem.textContent = 'Unassign';
+      unassignBtnItem.onclick = () => unassignItem();
+      const deleteBtnItem = document.getElementById('od-delete-btn');
+      deleteBtnItem.style.display = '';
+      deleteBtnItem.textContent = 'Delete';
+      deleteBtnItem.onclick = () => deleteItem(itemId);
       document.getElementById('item-detail').classList.add('open');
     }
 
     function openWorkerDetail(workerId) {
       const worker = data.workers.find(w => w.id === workerId);
       if (!worker) return;
+      resetOverlayButtons();
       // Venue-céntrico: el worker ya no custodia items. Si es manager,
       // mostramos sus venues y el inventario del que responde.
       const managed = data.locations.filter(l => l.admin === workerId);
@@ -3293,27 +3299,44 @@
       editBtn.style.display = '';
       editBtn.textContent = 'Edit Worker';
       editBtn.onclick = () => { closeOverlay(); openWorkerModal(workerId); };
-      document.getElementById('od-unassign-btn').style.display = 'none';
       const printBtn = document.getElementById('od-print-btn');
       printBtn.style.display = '';
       printBtn.textContent = 'Print Badge';
       printBtn.onclick = () => printWorkerBadge(workerId);
-      document.getElementById('od-delete-btn').style.display = '';
-      document.getElementById('od-delete-btn').onclick = () => deleteWorker(workerId);
+      const workerDeleteBtn = document.getElementById('od-delete-btn');
+      workerDeleteBtn.style.display = '';
+      workerDeleteBtn.textContent = 'Delete';
+      workerDeleteBtn.onclick = () => deleteWorker(workerId);
       document.getElementById('item-detail').classList.add('open');
+    }
+
+    // El overlay `item-detail` comparte sus botones entre cuatro detalles
+    // (item, worker, location, evento/ruta). Cada open*Detail configura solo
+    // los que usa, así que TODOS parten de aquí en estado oculto/limpio para
+    // que no se filtre display/textContent/onclick de un tipo a otro
+    // (regresión: botón rojo sin texto tras abrir un location y luego un
+    // evento). Se llama al inicio de cada open*Detail y en closeOverlay.
+    function resetOverlayButtons() {
+      [
+        { id: 'od-assign-btn', text: 'Assign to Venue' },
+        { id: 'od-print-btn', text: 'Print Label' },
+        { id: 'od-unassign-btn', text: 'Unassign' },
+        { id: 'od-delete-btn', text: 'Delete' },
+        { id: 'close-event-btn', text: '' },   // se crean bajo demanda en
+        { id: 'archive-event-btn', text: '' }, // openEventDetail
+      ].forEach(d => {
+        const btn = document.getElementById(d.id);
+        if (!btn) return;
+        btn.style.display = 'none';
+        btn.textContent = d.text;
+        btn.onclick = null;
+      });
     }
 
     function closeOverlay() {
       document.getElementById('item-detail').classList.remove('open');
       detailItemId = null;
-      document.getElementById('od-assign-btn').style.display = '';
-      document.getElementById('od-unassign-btn').style.display = '';
-      document.getElementById('od-print-btn').style.display = '';
-      document.getElementById('od-delete-btn').style.display = 'none';
-      const closeEvBtn = document.getElementById('close-event-btn');
-      if (closeEvBtn) closeEvBtn.style.display = 'none';
-      const archiveEvBtn = document.getElementById('archive-event-btn');
-      if (archiveEvBtn) archiveEvBtn.style.display = 'none';
+      resetOverlayButtons();
     }
 
     // ─── BARCODE ─────────────────────────────────────────────────
@@ -4172,6 +4195,7 @@
       currentEventDetailId = eventId;
       const ev = cfg.arr().find(e => e.id === eventId);
       if (!ev) return;
+      resetOverlayButtons();
 
       const sc = eventStatusColors[ev.status] || eventStatusColors.Upcoming;
       const managers = (ev.managers || []).map(id => data.workers.find(w => w.id === id)).filter(Boolean);
@@ -4208,16 +4232,11 @@
     ${ev.notes ? `<div style="margin-top:12px;font-size:12px;color:var(--text3);">${escapeHTML(ev.notes)}</div>` : ''}
   `;
 
-      // Buttons
-      document.getElementById('od-assign-btn').textContent = 'Edit ' + cfg.label;
-      document.getElementById('od-assign-btn').onclick = () => { closeOverlay(); openEventModal(ev.id); };
-      document.getElementById('od-assign-btn').style.display = '';
-
-      const unassignBtn = document.querySelector('[onclick="unassignItem()"]');
-      unassignBtn.style.display = 'none';
-
-      const printBtn = document.querySelector('[onclick="printDetailBarcode()"]');
-      printBtn.style.display = 'none';
+      // Buttons (unassign/print/delete quedan ocultos por resetOverlayButtons)
+      const evEditBtn = document.getElementById('od-assign-btn');
+      evEditBtn.textContent = 'Edit ' + cfg.label;
+      evEditBtn.onclick = () => { closeOverlay(); openEventModal(ev.id); };
+      evEditBtn.style.display = '';
 
       // Show close button only if active/upcoming
       let closeEvBtn = document.getElementById('close-event-btn');
@@ -4340,15 +4359,22 @@
     }
 
     function renderEAIItems(search) {
-      // Venue-céntrico: elegibles los items ya trasladados a un venue y sin evento.
-      const available = data.items.filter(i =>
-        i.status === 'Assigned' &&
-        (!i.eventId) &&
-        (i.name.toLowerCase().includes(search.toLowerCase()) || i.barcode.toLowerCase().includes(search.toLowerCase()))
-      );
+      // Elegibles: TODOS los items activos sin evento (no solo los ya
+      // trasladados a un venue). Para bulk solo el master — los hijos
+      // (isBulk && status 'Assigned') se excluyen, igual que handleQAScan —
+      // y con stock disponible. Respeta org y búsqueda.
+      const term = String(search || '').toLowerCase();
+      const available = data.items.filter(i => {
+        if (!orgMatches(i.org)) return false;
+        if (i.status === 'Archived') return false;
+        if (i.eventId) return false;
+        if (i.isBulk && i.status === 'Assigned') return false; // hijo bulk: se elige el master
+        if (i.isBulk && !(Number(i.quantity) > 0)) return false; // bulk sin stock
+        return (i.name || '').toLowerCase().includes(term) || (i.barcode || '').toLowerCase().includes(term);
+      });
       const list = document.getElementById('eai-items-list');
       if (!available.length) {
-        list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">No available items — items must be assigned to a venue first</div>';
+        list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">No eligible items found</div>';
         return;
       }
       list.innerHTML = available.map(item => {
@@ -4363,6 +4389,7 @@
         </div>
         <div class="mono" style="font-size:10px;">${escapeHTML(item.barcode)}</div>
       </div>
+      ${item.isBulk ? `<div style="display:flex;flex-direction:column;align-items:flex-end;" onclick="event.stopPropagation()"><span style="font-size:10px;color:var(--text3);margin-bottom:2px;">Qty for Event</span><input type="number" id="eai-qty-${attr(item.id)}" class="form-input" style="width:60px;padding:4px;font-size:12px;text-align:center;" min="1" max="${Number(item.quantity) || 1}" value="${Number(item.quantity) || 1}" onclick="event.stopPropagation()"></div>` : ''}
     </div>`;
       }).join('');
     }
@@ -4498,48 +4525,112 @@
       openLocationDetail(venue.id);
     }
 
-    function confirmEventItemAssign() {
+    async function confirmEventItemAssign() {
       if (currentEventDetailKind) scheduleKind = currentEventDetailKind;
       const cfg = schedCfg();
       const checkboxes = Array.from(document.querySelectorAll('#eai-items-list input[type="checkbox"]:checked'));
       if (checkboxes.length === 0) { toast('Please select at least one item', 'error'); return; }
       const ev = cfg.arr().find(e => e.id === currentEventDetailId);
       if (!ev) return;
+      const venue = ev.location ? data.locations.find(l => l.id === ev.location) : null;
 
       let count = 0;
-      let addedNames = [];
-      checkboxes.forEach(cb => {
+      const addedNames = [];
+      for (const cb of checkboxes) {
         const item = data.items.find(i => i.id === cb.value);
-        if (item) {
+        if (!item) continue;
+        let qty;
+        if (item.isBulk) {
+          const qtyInput = document.getElementById('eai-qty-' + item.id);
+          qty = qtyInput && qtyInput.value !== '' ? parseInt(qtyInput.value, 10) : item.quantity;
+        }
+
+        if (venue) {
+          if (item.location === venue.id && !item.isBulk) {
+            // Ya está en el location del evento: solo etiquetar (custodia intacta).
+            item.eventId = ev.id;
+            updateItemInSheets(item);
+            const msg = `${item.name} assigned to ${cfg.label.toLowerCase()} "${ev.name}"`;
+            addHistory(msg, 'assign', item.id);
+            saveHistoryToSheets(msg, 'assign', item.id);
+          } else {
+            // Mover custodia al location del evento (mismo plan que
+            // confirmQuickAssign): mutar + persistir changed/created,
+            // registrar traslado en Assignments y history con ItemID.
+            const res = venueCore.assignItem(venueState(), item, venue, qty);
+            if (res.error) { toast(`${item.name}: ${res.error}`, 'error'); continue; }
+            if (res.created) {
+              // Bulk: el HIJO lleva el eventId (el master queda sin evento
+              // y con el stock restante en su base).
+              res.created.eventId = ev.id;
+              data.items.push(res.created);
+              await saveItemToSheets(res.created); // el servidor fija el ID real
+              res.record.itemId = res.created.id;
+            } else {
+              item.eventId = ev.id;
+            }
+            updateItemInSheets(item);
+            saveAssignmentToSheets(res.record);
+            const msg = `${res.message} for ${cfg.label.toLowerCase()} "${ev.name}"`;
+            addHistory(msg, 'assign', res.record.itemId);
+            saveHistoryToSheets(msg, 'assign', res.record.itemId);
+          }
+        } else {
+          // DECISIÓN (evento/ruta SIN location): los unit items solo se
+          // etiquetan con eventId y la custodia queda intacta. Para bulk
+          // parcial exigimos que el evento tenga location: un hijo bulk sin
+          // traslado compartiría barcode y status con su master y sería
+          // indistinguible de él para venueCore.bulkMasterFor (rompería la
+          // devolución de stock), así que es más simple y coherente pedir
+          // location y explicarlo con un toast.
+          if (item.isBulk) {
+            toast(`${item.name}: set a location on the ${cfg.label.toLowerCase()} first to assign bulk quantities`, 'error');
+            continue;
+          }
           item.eventId = ev.id;
           updateItemInSheets(item);
-          count++;
-          addedNames.push(item.name);
+          const msg = `${item.name} assigned to ${cfg.label.toLowerCase()} "${ev.name}"`;
+          addHistory(msg, 'assign', item.id);
+          saveHistoryToSheets(msg, 'assign', item.id);
         }
-      });
+        count++;
+        addedNames.push(item.name);
+      }
 
-      const MAX_NAMES = 3;
-      const namesPreview = addedNames.slice(0, MAX_NAMES).join(', ') + (addedNames.length > MAX_NAMES ? '...' : '');
-      const msg = `${count} item(s) assigned to ${cfg.label.toLowerCase()} "${ev.name}": ${namesPreview}`;
-      addHistory(msg, 'assign');
-      saveHistoryToSheets(msg, 'assign');
-      toast(`${count} items added to ${cfg.label.toLowerCase()} ✓`, 'success');
+      if (count) {
+        const MAX_NAMES = 3;
+        const namesPreview = addedNames.slice(0, MAX_NAMES).join(', ') + (addedNames.length > MAX_NAMES ? '...' : '');
+        const msg = `${count} item(s) assigned to ${cfg.label.toLowerCase()} "${ev.name}": ${namesPreview}`;
+        addHistory(msg, 'assign');
+        saveHistoryToSheets(msg, 'assign');
+        toast(`${count} item(s) added to ${cfg.label.toLowerCase()} ✓`, 'success');
+      }
       closeModal('event-assign-item-modal');
 
       // Refresh detail
       openEventDetail(ev.id);
       renderAll();
+      updateNavBadges();
     }
 
     function removeItemFromEvent(itemId) {
       const item = data.items.find(i => i.id === itemId);
       if (!item) return;
       const evName = scheduleById(item.eventId)?.name || '';
+      let msg = `${item.name} removed from event "${evName}"`;
+      let changed = [item];
+      if (item.status === 'Assigned') {
+        // El item fue trasladado al asignarse al evento: devolver la custodia
+        // a su origen (los hijos bulk se archivan y el stock vuelve al master).
+        const res = venueCore.returnItem(venueState(), item);
+        if (res.error) { toast(res.error, 'error'); return; }
+        changed = res.changed;
+        msg += ' — ' + res.message;
+      }
       item.eventId = null;
-      updateItemInSheets(item);
-      const msg = `${item.name} removed from event "${evName}"`;
-      addHistory(msg, 'unassign');
-      saveHistoryToSheets(msg, 'unassign');
+      changed.forEach(i => updateItemInSheets(i));
+      addHistory(msg, 'unassign', item.id);
+      saveHistoryToSheets(msg, 'unassign', item.id);
       toast('Item removed from event', 'info');
 
       // Refresh detail
