@@ -1706,42 +1706,10 @@
       </div>
       <div class="modal-body">
 
-        <!-- Paso 1: archivo + destino -->
+        <!-- Paso 1: solo el archivo. El destino se elige en el paso 2,
+             junto a la vista previa: no tiene caso decidir a qué almacén
+             va el inventario antes de ver qué trae el archivo. -->
         <div id="imp-step-1">
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Import into (Location) *</label>
-              <select class="form-select" id="imp-loc" onchange="onImportLocChange()"></select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Default category</label>
-              <select class="form-select" id="imp-def-cat">
-                <option>Other</option>
-                <option>Equipment</option>
-                <option>Tools</option>
-                <option>Uniform</option>
-                <option>Supplies</option>
-                <option>Electronics</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Default condition</label>
-              <select class="form-select" id="imp-def-cond">
-                <option>Good</option>
-                <option>New</option>
-                <option>Fair</option>
-                <option>Poor</option>
-              </select>
-            </div>
-            <div class="form-group admin-only" id="imp-org-group" style="display:none;">
-              <label class="form-label">Organization</label>
-              <select class="form-select" id="imp-org">
-                <option value="flex">Flex</option>
-                <option value="flux">Flux</option>
-              </select>
-            </div>
-          </div>
-
           <div id="imp-drop" style="margin-top:16px;border:2px dashed var(--border);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;"
                onclick="document.getElementById('imp-file').click()"
                ondragover="event.preventDefault(); this.style.borderColor='var(--accent)';"
@@ -1755,7 +1723,7 @@
           </div>
           <div id="imp-file-error" style="display:none;margin-top:12px;color:#ff6b6b;font-size:13px;"></div>
           <div style="margin-top:14px;font-size:12px;opacity:.7;">
-            No template needed &mdash; TrackIt reads the warehouse's own column names and lets you fix the mapping in the next step.
+            No template needed &mdash; TrackIt reads the warehouse's own column names. You'll choose the destination location, the organization and fix the column mapping in the next step.
           </div>
         </div>
 
@@ -1768,7 +1736,42 @@
             </div>
             <button class="btn btn-ghost btn-sm" onclick="importBackToStep1()">Choose another file</button>
           </div>
-          <div class="section-title">Column mapping</div>
+          <div class="section-title">Destination</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Import into (Location) *</label>
+              <select class="form-select" id="imp-loc" onchange="onImportLocChange()"></select>
+            </div>
+            <div class="form-group admin-only" id="imp-org-group" style="display:none;">
+              <label class="form-label">Organization</label>
+              <select class="form-select" id="imp-org" onchange="onImportLocChange()">
+                <option value="flex">Flex</option>
+                <option value="flux">Flux</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default category</label>
+              <select class="form-select" id="imp-def-cat" onchange="onImportLocChange()">
+                <option>Other</option>
+                <option>Equipment</option>
+                <option>Tools</option>
+                <option>Uniform</option>
+                <option>Supplies</option>
+                <option>Electronics</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default condition</label>
+              <select class="form-select" id="imp-def-cond" onchange="onImportLocChange()">
+                <option>Good</option>
+                <option>New</option>
+                <option>Fair</option>
+                <option>Poor</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="section-title" style="margin-top:18px;">Column mapping</div>
           <div class="form-grid" id="imp-mapping"></div>
           <div class="section-title" style="margin-top:18px;">Preview</div>
           <div id="imp-summary" style="font-size:13px;margin-bottom:10px;"></div>
@@ -2979,7 +2982,11 @@
 
       const u = sessionUser();
       const orgGroup = document.getElementById('imp-org-group');
-      if (orgGroup) orgGroup.style.display = (u && u.org === 'all') ? 'block' : 'none';
+      if (orgGroup) orgGroup.style.display = (u && u.org === 'all') ? '' : 'none';
+      const orgSel = document.getElementById('imp-org');
+      // Para un manager la org la fuerza el servidor por sesión; el admin
+      // elige, y arranca en la suya para no heredar la del import anterior.
+      if (orgSel && u && u.org !== 'all') orgSel.value = u.org;
 
       document.getElementById('imp-file').value = '';
       document.getElementById('imp-file-error').style.display = 'none';
