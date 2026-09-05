@@ -3064,9 +3064,17 @@
 
     function renderImportMapping() {
       const lib = importCoreLib();
+      // Un valor de ejemplo por columna. Sin esto es imposible notar que
+      // el archivo trae la cantidad bajo un encabezado que dice otra cosa
+      // — pasa seguido en las hojas de almacén.
+      const sample = impState.headers.map((h, i) => {
+        const row = impState.rows.find(r => String(r[i] == null ? '' : r[i]).trim() !== '');
+        const v = row ? String(row[i]).trim() : '';
+        return v.length > 18 ? v.slice(0, 18) + '…' : v;
+      });
       const opts = (selected) => '<option value="-1">— Not mapped —</option>' +
         impState.headers.map((h, i) =>
-          `<option value="${i}" ${String(selected) === String(i) ? 'selected' : ''}>${escapeHTML(h)}</option>`
+          `<option value="${i}" ${String(selected) === String(i) ? 'selected' : ''}>${escapeHTML(h)}${sample[i] ? escapeHTML(' — ej: ' + sample[i]) : ''}</option>`
         ).join('');
       document.getElementById('imp-mapping').innerHTML = lib.import.FIELDS.map(f => {
         const cur = impState.mapping[f.key];

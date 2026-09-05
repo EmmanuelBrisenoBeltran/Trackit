@@ -368,15 +368,36 @@
       return rows;
     },
 
-    // Quita filas vacías arriba y toma la primera con contenido como
-    // encabezado. Los almacenes suelen dejar un título en A1.
+    // Elige la fila de encabezados. NO es simplemente la primera con
+    // contenido: los almacenes anteponen un título y a veces un bloque
+    // de resumen ("Metric | Value") que es más angosto que la tabla real.
+    // Criterio: la fila MÁS ANCHA de las primeras 30, exigiendo que sus
+    // celdas sean etiquetas de texto y no una fila de datos numéricos.
+    // En empate gana la más alta (la primera).
+    findHeaderRow(clean) {
+      const width = (r) => r.filter((c) => String(c).trim() !== '').length;
+      const textiness = (r) => {
+        const cells = r.filter((c) => String(c).trim() !== '');
+        if (!cells.length) return 0;
+        const text = cells.filter((c) => !/^-?[\d.,]+$/.test(String(c).trim())).length;
+        return text / cells.length;
+      };
+      let best = 0, bestW = -1;
+      const limit = Math.min(clean.length, 30);
+      for (let i = 0; i < limit; i++) {
+        // El encabezado no puede ser la última fila: no dejaría datos.
+        if (clean.length > 1 && i === clean.length - 1) break;
+        if (textiness(clean[i]) < 0.6) continue;
+        const w = width(clean[i]);
+        if (w > bestW) { bestW = w; best = i; }
+      }
+      return bestW <= 0 ? 0 : best;
+    },
+
     toTable(rows) {
       const clean = rows.filter((r) => r.some((c) => String(c).trim() !== ''));
       if (!clean.length) return { headers: [], rows: [] };
-      // El encabezado real es la primera fila con >=2 celdas con texto,
-      // si no, la primera con contenido.
-      let h = clean.findIndex((r) => r.filter((c) => String(c).trim() !== '').length >= 2);
-      if (h === -1) h = 0;
+      const h = this.findHeaderRow(clean);
       const headers = clean[h].map((c, i) => String(c).trim() || 'Columna ' + (i + 1));
       const body = clean.slice(h + 1).map((r) => {
         const row = [];
