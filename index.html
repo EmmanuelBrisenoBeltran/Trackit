@@ -1793,6 +1793,7 @@
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal('import-modal')" id="imp-cancel-btn">Cancel</button>
         <button class="btn btn-ghost" onclick="downloadImportReport()" id="imp-report-btn" style="display:none;">Download report (CSV)</button>
+        <button class="btn btn-danger" onclick="undoImport()" id="imp-undo-btn" style="display:none;background:var(--red);color:#fff;">Undo this import</button>
         <button class="btn btn-primary" onclick="runImport()" id="imp-run-btn" style="display:none;">Import</button>
       </div>
     </div>
@@ -2090,6 +2091,7 @@
       <div class="section-title">Details</div>
       <div id="od-details"></div>
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" id="od-edit-btn" onclick="editFromDetail()">Edit</button>
         <button class="btn btn-primary btn-sm" id="od-assign-btn" onclick="assignFromDetail()">Assign to Worker</button>
         <button class="btn btn-ghost btn-sm" id="od-print-btn" onclick="printDetailBarcode()">Print Label</button>
         <button class="btn btn-danger btn-sm" id="od-unassign-btn" onclick="unassignItem()">Unassign</button>
@@ -2992,6 +2994,7 @@
       });
       document.getElementById('imp-run-btn').style.display = (n === 2) ? 'inline-flex' : 'none';
       document.getElementById('imp-report-btn').style.display = 'none';
+      document.getElementById('imp-undo-btn').style.display = 'none';
       document.getElementById('imp-cancel-btn').textContent = 'Cancel';
     }
 
@@ -3118,7 +3121,8 @@
         ` &middot; <strong>${dd.skipped.length}</strong> duplicate(s) skipped` +
         ` &middot; <strong>${norm.errors.length}</strong> row(s) with errors` +
         ` &middot; status will be <strong>${status}</strong>` +
-        (loc ? ` in <strong>${escapeHTML(loc.name)}</strong>` : '');
+        (loc ? ` in <strong>${escapeHTML(loc.name)}</strong>` : '') +
+        ` &middot; org <strong>${escapeHTML(orgForNewEntity('imp-org'))}</strong>`;
 
       const cols = ['Name', 'Category', 'Brand', 'Serial', 'UID', 'Condition', 'Quantity'];
       document.getElementById('imp-preview-head').innerHTML =
@@ -3141,8 +3145,12 @@
       }
       document.getElementById('imp-issues').innerHTML = issues.join('');
       document.getElementById('imp-run-btn').disabled = dd.toImport.length === 0;
-      document.getElementById('imp-run-btn').textContent =
-        dd.toImport.length ? `Import ${dd.toImport.length} item(s)` : 'Nothing to import';
+      // El destino va EN el botón: el selector está hasta arriba del paso 1
+      // y es fácil confirmar sin volver a mirarlo (así entraron 40 artículos
+      // al almacén equivocado la primera vez).
+      document.getElementById('imp-run-btn').textContent = dd.toImport.length
+        ? `Import ${dd.toImport.length} item(s) → ${loc ? loc.name : '—'}`
+        : 'Nothing to import';
     }
 
     // Escritura: bulkAppend (una llamada por lote de 200). Si el backend
@@ -3170,6 +3178,7 @@
 
       let done = 0, failed = 0;
       const failures = [];
+      const createdIds = [];
       const setProgress = (label) => {
         document.getElementById('imp-progress-label').textContent = label;
         document.getElementById('imp-progress-bar').style.width =
@@ -3185,13 +3194,13 @@
           res = await window.sheetsBulkAppend('Items', chunk.map(p => p.row));
         }
         if (res && res.success && Array.isArray(res.ids) && res.ids.length === chunk.length) {
-          chunk.forEach((p, k) => { pushImportedItem(p.row, res.ids[k]); done++; });
+          chunk.forEach((p, k) => { createdIds.push(pushImportedItem(p.row, res.ids[k])); done++; });
         } else {
           // Fallback: append fila por fila (backend viejo o error de lote).
           if (canBulk && res && res.error) console.warn('bulkAppend failed, falling back:', res.error);
           for (const p of chunk) {
             const one = await sheetsPost('append', 'Items', p.row);
-            if (one && one.success) { pushImportedItem(p.row, one.id); done++; }
+            if (one && one.success) { createdIds.push(pushImportedItem(p.row, one.id)); done++; }
             else { failed++; failures.push({ name: p.row.Name, reason: (one && one.error) || 'Unknown error' }); }
             setProgress(`Importing ${done + failed} / ${prepared.length}…`);
           }
@@ -3205,7 +3214,8 @@
         await saveHistoryToSheets(msg, 'add');
       }
 
-      impState.result = { done, failed, failures, skipped: impState.skipped.slice(), errors: impState.errors.slice() };
+      impState.result = { done, failed, failures, createdIds, destination: locObj ? locObj.name : locId,
+        skipped: impState.skipped.slice(), errors: impState.errors.slice() };
       document.getElementById('imp-progress-wrap').style.display = 'none';
       const rep = document.getElementById('imp-report');
       rep.style.display = 'block';
@@ -3221,6 +3231,7 @@
          </div>`;
       document.getElementById('imp-report-btn').style.display =
         (impState.skipped.length || impState.errors.length || failed) ? 'inline-flex' : 'none';
+      document.getElementById('imp-undo-btn').style.display = done ? 'inline-flex' : 'none';
       document.getElementById('imp-cancel-btn').textContent = 'Done';
 
       renderAll();
@@ -3230,8 +3241,9 @@
     }
 
     function pushImportedItem(row, id) {
+      const newId = id || ('ITM' + String(data.nextItemId++).padStart(3, '0'));
       data.items.push({
-        id: id || ('ITM' + String(data.nextItemId++).padStart(3, '0')),
+        id: newId,
         name: row.Name, barcode: row.Barcode, category: row.Category,
         location: row.Location, brand: row.Brand, serial: row.Serial,
         condition: row.Condition, status: row.Status,
@@ -3239,6 +3251,46 @@
         uidType: row.UIDType, uid: row.UID, created: row.Created,
         org: String(row.Org || 'flex').toLowerCase(),
         isBulk: row.IsBulk === 'TRUE', quantity: row.Quantity,
+      });
+      return newId;
+    }
+
+    // Deshacer la importación recién hecha: borra exactamente los artículos
+    // que creó, ni uno más. Existe porque el error caro de un importador no
+    // es fallar, es acertar en el lugar equivocado.
+    let _undoRunning = false;
+    async function undoImport() {
+      const r = impState.result;
+      if (!r || !r.createdIds || !r.createdIds.length || _undoRunning) return;
+      const ids = r.createdIds.slice();
+      confirmDelete(`Delete the ${ids.length} item(s) just imported into ${r.destination}?`, async () => {
+        _undoRunning = true;
+        const undoBtn = document.getElementById('imp-undo-btn');
+        undoBtn.disabled = true;
+        document.getElementById('imp-progress-wrap').style.display = 'block';
+        let removed = 0;
+        for (const id of ids) {
+          const res = await sheetsPost('delete', 'Items', { ID: id });
+          if (res && res.success) {
+            data.items = data.items.filter(i => i.id !== id);
+            removed++;
+          }
+          document.getElementById('imp-progress-label').textContent = `Undoing ${removed} / ${ids.length}…`;
+          document.getElementById('imp-progress-bar').style.width = Math.round(removed / ids.length * 100) + '%';
+        }
+        const msg = `Import of ${removed} item(s) into ${r.destination} was undone`;
+        addHistory(msg, 'delete');
+        await saveHistoryToSheets(msg, 'delete');
+        impState.result.createdIds = [];
+        document.getElementById('imp-progress-wrap').style.display = 'none';
+        undoBtn.style.display = 'none';
+        undoBtn.disabled = false;
+        document.getElementById('imp-report').innerHTML =
+          `<div style="padding:8px 0;font-size:14px;">Import undone — ${removed} item(s) removed.</div>`;
+        renderAll();
+        updateNavBadges();
+        _undoRunning = false;
+        toast(`${removed} item(s) removed`, 'success');
       });
     }
 
@@ -3498,6 +3550,17 @@
 
     function assignFromDetail() { if (detailItemId) openAssign(detailItemId); }
 
+    // Corregir un item ya creado — sobre todo su ubicación base, p. ej.
+    // tras importar al almacén equivocado. "Assign to Venue" NO sirve para
+    // esto: marca el item como Assigned y registra un traslado que no
+    // ocurrió. Editar cambia la base sin inventar movimientos.
+    function editFromDetail() {
+      if (!detailItemId) return;
+      const id = detailItemId;
+      closeOverlay();
+      openItemModal(id);
+    }
+
     function confirmAssign() {
       if (!selectedVenueId) { toast('Please select a venue', 'error'); return; }
       const item = data.items.find(i => i.id === assigningItemId);
@@ -3652,6 +3715,10 @@
       </div>`).join('')
         : '<div style="font-size:12px;color:var(--text3);padding:8px 0;">No history for this item</div>';
 
+      const editBtnItem = document.getElementById('od-edit-btn');
+      editBtnItem.style.display = '';
+      editBtnItem.textContent = 'Edit';
+      editBtnItem.onclick = () => editFromDetail();
       const odAssignBtn = document.getElementById('od-assign-btn');
       odAssignBtn.textContent = item.status === 'Assigned' ? 'Transfer to Venue' : 'Assign to Venue';
       odAssignBtn.onclick = () => assignFromDetail();
@@ -3737,6 +3804,7 @@
     // evento). Se llama al inicio de cada open*Detail y en closeOverlay.
     function resetOverlayButtons() {
       [
+        { id: 'od-edit-btn', text: 'Edit' },
         { id: 'od-assign-btn', text: 'Assign to Venue' },
         { id: 'od-print-btn', text: 'Print Label' },
         { id: 'od-unassign-btn', text: 'Unassign' },
