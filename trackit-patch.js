@@ -128,6 +128,22 @@
     }
   };
 
+  // Alta por lotes (importador de inventario). Una sola llamada por
+  // lote; timeout más largo porque Apps Script escribe N filas de golpe.
+  // Si el backend desplegado no conoce la acción devuelve
+  // { error: 'Unknown action' } y el cliente cae a append en serie.
+  window.sheetsBulkAppend = async function (sheet, rows) {
+    try {
+      const res = await apiCall({ action: 'bulkAppend', sheet: sheet, rows: rows }, { timeout: 180000 });
+      if (res && res.error && res.error !== 'Unknown action' && typeof window.toast === 'function') {
+        window.toast('Server error: ' + res.error, 'error');
+      }
+      return res;
+    } catch (err) {
+      return { error: err.message };
+    }
+  };
+
   // ── 4. LOGIN OVERLAY ─────────────────────────────────────
   function buildLoginOverlay() {
     if (document.getElementById('trackit-login-overlay')) return;

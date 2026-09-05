@@ -1325,6 +1325,7 @@
             <div class="table-header">
               <span class="table-title" id="items-count-label">Items</span>
               <div class="table-actions">
+                <button class="btn btn-ghost btn-sm" onclick="openImportModal()" title="Bulk-add items from a warehouse Excel/CSV file">&#8593; Import Excel / CSV</button>
                 <button class="btn btn-primary btn-sm" onclick="openItemModal()">+ New Item</button>
               </div>
             </div>
@@ -1691,6 +1692,108 @@
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal('item-modal')">Cancel</button>
         <button class="btn btn-primary" onclick="saveItem()" id="item-save-btn">Save Item</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- IMPORT MODAL — alta masiva desde el Excel/CSV de un almacén -->
+  <div class="modal-backdrop" id="import-modal">
+    <div class="modal" style="max-width:900px;">
+      <div class="modal-header">
+        <span class="modal-title" id="import-modal-title">Import Inventory from Excel / CSV</span>
+        <button class="modal-close" onclick="closeModal('import-modal')">&#10005;</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Paso 1: archivo + destino -->
+        <div id="imp-step-1">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Import into (Location) *</label>
+              <select class="form-select" id="imp-loc" onchange="onImportLocChange()"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default category</label>
+              <select class="form-select" id="imp-def-cat">
+                <option>Other</option>
+                <option>Equipment</option>
+                <option>Tools</option>
+                <option>Uniform</option>
+                <option>Supplies</option>
+                <option>Electronics</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default condition</label>
+              <select class="form-select" id="imp-def-cond">
+                <option>Good</option>
+                <option>New</option>
+                <option>Fair</option>
+                <option>Poor</option>
+              </select>
+            </div>
+            <div class="form-group admin-only" id="imp-org-group" style="display:none;">
+              <label class="form-label">Organization</label>
+              <select class="form-select" id="imp-org">
+                <option value="flex">Flex</option>
+                <option value="flux">Flux</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="imp-drop" style="margin-top:16px;border:2px dashed var(--border);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;"
+               onclick="document.getElementById('imp-file').click()"
+               ondragover="event.preventDefault(); this.style.borderColor='var(--accent)';"
+               ondragleave="this.style.borderColor='var(--border)';"
+               ondrop="handleImportDrop(event, this)">
+            <div style="font-size:30px;line-height:1;margin-bottom:10px;">&#128194;</div>
+            <div style="font-weight:600;margin-bottom:4px;" id="imp-drop-title">Drop the warehouse file here, or click to browse</div>
+            <div style="font-size:12px;opacity:.7;">.xlsx &middot; .xlsm &middot; .csv &middot; .tsv &nbsp;&mdash;&nbsp; the first sheet is read</div>
+            <input type="file" id="imp-file" accept=".xlsx,.xlsm,.csv,.tsv,.txt" style="display:none;"
+                   onchange="handleImportFile(this)">
+          </div>
+          <div id="imp-file-error" style="display:none;margin-top:12px;color:#ff6b6b;font-size:13px;"></div>
+          <div style="margin-top:14px;font-size:12px;opacity:.7;">
+            No template needed &mdash; TrackIt reads the warehouse's own column names and lets you fix the mapping in the next step.
+          </div>
+        </div>
+
+        <!-- Paso 2: mapeo + vista previa -->
+        <div id="imp-step-2" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+            <div style="font-size:13px;">
+              <strong id="imp-file-name">file</strong>
+              <span style="opacity:.7;" id="imp-file-meta"></span>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="importBackToStep1()">Choose another file</button>
+          </div>
+          <div class="section-title">Column mapping</div>
+          <div class="form-grid" id="imp-mapping"></div>
+          <div class="section-title" style="margin-top:18px;">Preview</div>
+          <div id="imp-summary" style="font-size:13px;margin-bottom:10px;"></div>
+          <div class="table-wrap" style="max-height:280px;overflow:auto;">
+            <table><thead id="imp-preview-head"></thead><tbody id="imp-preview-body"></tbody></table>
+          </div>
+          <div id="imp-issues" style="margin-top:12px;"></div>
+        </div>
+
+        <!-- Paso 3: progreso + reporte -->
+        <div id="imp-step-3" style="display:none;">
+          <div id="imp-progress-wrap" style="padding:20px 0;">
+            <div style="font-size:13px;margin-bottom:8px;" id="imp-progress-label">Importing&hellip;</div>
+            <div style="height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;">
+              <div id="imp-progress-bar" style="height:100%;width:0%;background:var(--accent);transition:width .2s;"></div>
+            </div>
+          </div>
+          <div id="imp-report" style="display:none;"></div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('import-modal')" id="imp-cancel-btn">Cancel</button>
+        <button class="btn btn-ghost" onclick="downloadImportReport()" id="imp-report-btn" style="display:none;">Download report (CSV)</button>
+        <button class="btn btn-primary" onclick="runImport()" id="imp-run-btn" style="display:none;">Import</button>
       </div>
     </div>
   </div>
@@ -2840,6 +2943,312 @@
         _savingItem = false;
         btn.disabled = false; btn.textContent = origText;
       }
+    }
+
+    // ─── IMPORTADOR DE INVENTARIO (Excel / CSV de un almacén) ────────
+    // La lógica pura (lectura del archivo, mapeo, normalización, dedupe)
+    // vive en trackit-core.js y está cubierta por tests/import.test.js.
+    // Aquí solo va el pegamento con el DOM y la escritura por lotes.
+    const impState = {
+      fileName: '', headers: [], rows: [], mapping: {},
+      toImport: [], skipped: [], errors: [], result: null,
+    };
+
+    function importCoreLib() {
+      const c = window.venueCore;
+      return c && c.import ? c : null;
+    }
+
+    function openImportModal() {
+      const lib = importCoreLib();
+      if (!lib) { toast('Import module not loaded (trackit-core.js)', 'error'); return; }
+      impState.fileName = ''; impState.headers = []; impState.rows = [];
+      impState.mapping = {}; impState.toImport = []; impState.skipped = [];
+      impState.errors = []; impState.result = null;
+
+      // Destino: cualquier location visible; por defecto la primera bodega.
+      const visible = data.locations.filter(l => orgMatches(l.org));
+      const sel = document.getElementById('imp-loc');
+      sel.innerHTML = visible.map(l =>
+        `<option value="${attr(l.id)}">${escapeHTML(l.name)}${l.type ? ' — ' + escapeHTML(l.type) : ''}</option>`
+      ).join('');
+      const wh = visible.find(l => l.type === 'Warehouse');
+      if (wh) sel.value = wh.id;
+
+      const u = sessionUser();
+      const orgGroup = document.getElementById('imp-org-group');
+      if (orgGroup) orgGroup.style.display = (u && u.org === 'all') ? 'block' : 'none';
+
+      document.getElementById('imp-file').value = '';
+      document.getElementById('imp-file-error').style.display = 'none';
+      importShowStep(1);
+      openModal('import-modal');
+    }
+
+    function importShowStep(n) {
+      [1, 2, 3].forEach(i => {
+        const el = document.getElementById('imp-step-' + i);
+        if (el) el.style.display = (i === n) ? 'block' : 'none';
+      });
+      document.getElementById('imp-run-btn').style.display = (n === 2) ? 'inline-flex' : 'none';
+      document.getElementById('imp-report-btn').style.display = 'none';
+      document.getElementById('imp-cancel-btn').textContent = 'Cancel';
+    }
+
+    function importBackToStep1() {
+      document.getElementById('imp-file').value = '';
+      importShowStep(1);
+    }
+
+    function onImportLocChange() {
+      if (impState.rows.length) recomputeImportPreview();
+    }
+
+    async function handleImportFile(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const errBox = document.getElementById('imp-file-error');
+      errBox.style.display = 'none';
+      const lib = importCoreLib();
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      try {
+        let raw;
+        if (ext === 'xlsx' || ext === 'xlsm') {
+          if (typeof DecompressionStream === 'undefined') {
+            throw new Error('Este navegador no puede abrir .xlsx. Exporta el archivo como CSV e inténtalo de nuevo.');
+          }
+          raw = await lib.sheets.parseXlsx(await file.arrayBuffer());
+        } else if (ext === 'xls') {
+          throw new Error('El formato .xls (Excel 97-2003) no es compatible. Guárdalo como .xlsx o .csv.');
+        } else {
+          raw = lib.sheets.parseCsv(await file.text());
+        }
+        const table = lib.sheets.toTable(raw);
+        if (!table.headers.length || !table.rows.length) {
+          throw new Error('No se encontraron filas con datos en la primera hoja del archivo.');
+        }
+        impState.fileName = file.name;
+        impState.headers = table.headers;
+        impState.rows = table.rows;
+        impState.mapping = lib.import.guessMapping(table.headers);
+        document.getElementById('imp-file-name').textContent = file.name;
+        document.getElementById('imp-file-meta').textContent =
+          ` — ${table.rows.length} row(s), ${table.headers.length} column(s)`;
+        renderImportMapping();
+        recomputeImportPreview();
+        importShowStep(2);
+      } catch (e) {
+        console.error('Import parse error:', e);
+        const msg = e && e.message === 'NOT_XLSX'
+          ? 'El archivo no parece un .xlsx válido.'
+          : (e && e.message === 'ZIP64_UNSUPPORTED'
+            ? 'Archivo demasiado grande para el lector integrado. Expórtalo como CSV.'
+            : (e && e.message) || 'No se pudo leer el archivo.');
+        errBox.textContent = msg;
+        errBox.style.display = 'block';
+        input.value = '';
+      }
+    }
+
+    function handleImportDrop(ev, el) {
+      ev.preventDefault();
+      el.style.borderColor = 'var(--border)';
+      const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+      if (!f) return;
+      const input = document.getElementById('imp-file');
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      input.files = dt.files;
+      handleImportFile(input);
+    }
+
+    function renderImportMapping() {
+      const lib = importCoreLib();
+      const opts = (selected) => '<option value="-1">— Not mapped —</option>' +
+        impState.headers.map((h, i) =>
+          `<option value="${i}" ${String(selected) === String(i) ? 'selected' : ''}>${escapeHTML(h)}</option>`
+        ).join('');
+      document.getElementById('imp-mapping').innerHTML = lib.import.FIELDS.map(f => {
+        const cur = impState.mapping[f.key];
+        const req = f.required ? ' *' : '';
+        return `<div class="form-group">
+          <label class="form-label">${escapeHTML(f.label)}${req}</label>
+          <select class="form-select" data-imp-field="${attr(f.key)}" onchange="onImportMappingChange(this)">
+            ${opts(cur === undefined ? -1 : cur)}
+          </select>
+        </div>`;
+      }).join('');
+    }
+
+    function onImportMappingChange(sel) {
+      const field = sel.getAttribute('data-imp-field');
+      const val = parseInt(sel.value, 10);
+      if (val < 0) delete impState.mapping[field];
+      else impState.mapping[field] = val;
+      recomputeImportPreview();
+    }
+
+    function recomputeImportPreview() {
+      const lib = importCoreLib();
+      const locId = document.getElementById('imp-loc').value;
+      const loc = data.locations.find(l => l.id === locId);
+      const norm = lib.import.normalizeRows(impState.rows, impState.mapping, {
+        location: locId,
+        locationType: loc ? loc.type : '',
+        org: orgForNewEntity('imp-org'),
+        defaultCategory: document.getElementById('imp-def-cat').value,
+        defaultCondition: document.getElementById('imp-def-cond').value,
+      });
+      const dd = lib.import.dedupe(data.items, norm.candidates);
+      impState.toImport = dd.toImport;
+      impState.skipped = dd.skipped;
+      impState.errors = norm.errors;
+
+      const status = loc && loc.type === 'Warehouse' ? 'Available' : 'Assigned';
+      document.getElementById('imp-summary').innerHTML =
+        `<strong style="color:var(--accent);">${dd.toImport.length}</strong> to import` +
+        ` &middot; <strong>${dd.skipped.length}</strong> duplicate(s) skipped` +
+        ` &middot; <strong>${norm.errors.length}</strong> row(s) with errors` +
+        ` &middot; status will be <strong>${status}</strong>` +
+        (loc ? ` in <strong>${escapeHTML(loc.name)}</strong>` : '');
+
+      const cols = ['Name', 'Category', 'Brand', 'Serial', 'UID', 'Condition', 'Quantity'];
+      document.getElementById('imp-preview-head').innerHTML =
+        '<tr><th>#</th>' + cols.map(c => `<th>${escapeHTML(c)}</th>`).join('') + '</tr>';
+      document.getElementById('imp-preview-body').innerHTML = dd.toImport.slice(0, 20).map(c =>
+        `<tr><td style="opacity:.6;">${c.sourceRow}</td>` +
+        cols.map(k => `<td>${escapeHTML(String(c[k] == null ? '' : c[k]))}</td>`).join('') + '</tr>'
+      ).join('') || '<tr><td colspan="8" style="opacity:.6;padding:14px;">Nothing to import with this mapping.</td></tr>';
+
+      const issues = [];
+      if (dd.skipped.length) {
+        issues.push(`<div style="font-size:12px;margin-bottom:6px;"><strong>Skipped (already in TrackIt):</strong> ` +
+          dd.skipped.slice(0, 8).map(s => escapeHTML(`row ${s.sourceRow} ${s.name} — ${s.reason}`)).join('; ') +
+          (dd.skipped.length > 8 ? ` … +${dd.skipped.length - 8} more` : '') + '</div>');
+      }
+      if (norm.errors.length) {
+        issues.push(`<div style="font-size:12px;color:#ff6b6b;"><strong>Errors:</strong> ` +
+          norm.errors.slice(0, 8).map(e => escapeHTML(`row ${e.sourceRow} — ${e.reason}`)).join('; ') +
+          (norm.errors.length > 8 ? ` … +${norm.errors.length - 8} more` : '') + '</div>');
+      }
+      document.getElementById('imp-issues').innerHTML = issues.join('');
+      document.getElementById('imp-run-btn').disabled = dd.toImport.length === 0;
+      document.getElementById('imp-run-btn').textContent =
+        dd.toImport.length ? `Import ${dd.toImport.length} item(s)` : 'Nothing to import';
+    }
+
+    // Escritura: bulkAppend (una llamada por lote de 200). Si el backend
+    // desplegado todavía no tiene la acción, cae a append en serie.
+    const IMPORT_CHUNK = 200;
+    let _importRunning = false;
+
+    async function runImport() {
+      if (_importRunning || !impState.toImport.length) return;
+      _importRunning = true;
+      const runBtn = document.getElementById('imp-run-btn');
+      runBtn.disabled = true;
+      importShowStep(3);
+      document.getElementById('imp-report').style.display = 'none';
+      document.getElementById('imp-progress-wrap').style.display = 'block';
+
+      const lib = importCoreLib();
+      const created = new Date().toISOString().split('T')[0];
+      const locId = document.getElementById('imp-loc').value;
+      const locObj = data.locations.find(l => l.id === locId);
+      const prepared = impState.toImport.map(c => ({
+        cand: c,
+        row: lib.import.toSheetRow(c, 'TRK-' + String(data.nextBarcode++).padStart(4, '0'), created),
+      }));
+
+      let done = 0, failed = 0;
+      const failures = [];
+      const setProgress = (label) => {
+        document.getElementById('imp-progress-label').textContent = label;
+        document.getElementById('imp-progress-bar').style.width =
+          Math.round((done + failed) / prepared.length * 100) + '%';
+      };
+      setProgress('Importing 0 / ' + prepared.length + '…');
+
+      const canBulk = typeof window.sheetsBulkAppend === 'function';
+      for (let i = 0; i < prepared.length; i += IMPORT_CHUNK) {
+        const chunk = prepared.slice(i, i + IMPORT_CHUNK);
+        let res = null;
+        if (canBulk) {
+          res = await window.sheetsBulkAppend('Items', chunk.map(p => p.row));
+        }
+        if (res && res.success && Array.isArray(res.ids) && res.ids.length === chunk.length) {
+          chunk.forEach((p, k) => { pushImportedItem(p.row, res.ids[k]); done++; });
+        } else {
+          // Fallback: append fila por fila (backend viejo o error de lote).
+          if (canBulk && res && res.error) console.warn('bulkAppend failed, falling back:', res.error);
+          for (const p of chunk) {
+            const one = await sheetsPost('append', 'Items', p.row);
+            if (one && one.success) { pushImportedItem(p.row, one.id); done++; }
+            else { failed++; failures.push({ name: p.row.Name, reason: (one && one.error) || 'Unknown error' }); }
+            setProgress(`Importing ${done + failed} / ${prepared.length}…`);
+          }
+        }
+        setProgress(`Importing ${done + failed} / ${prepared.length}…`);
+      }
+
+      if (done) {
+        const msg = `${done} item(s) imported into ${locObj ? locObj.name : locId} from ${impState.fileName}`;
+        addHistory(msg, 'add');
+        await saveHistoryToSheets(msg, 'add');
+      }
+
+      impState.result = { done, failed, failures, skipped: impState.skipped.slice(), errors: impState.errors.slice() };
+      document.getElementById('imp-progress-wrap').style.display = 'none';
+      const rep = document.getElementById('imp-report');
+      rep.style.display = 'block';
+      rep.innerHTML =
+        `<div style="padding:8px 0 16px;">
+           <div style="font-size:18px;font-weight:700;color:var(--accent);margin-bottom:10px;">${done} item(s) imported</div>
+           <div style="font-size:13px;line-height:1.9;">
+             Destination: <strong>${escapeHTML(locObj ? locObj.name : locId)}</strong><br>
+             Duplicates skipped: <strong>${impState.skipped.length}</strong><br>
+             Rows with errors: <strong>${impState.errors.length}</strong><br>
+             Failed writes: <strong style="${failed ? 'color:#ff6b6b;' : ''}">${failed}</strong>
+           </div>
+         </div>`;
+      document.getElementById('imp-report-btn').style.display =
+        (impState.skipped.length || impState.errors.length || failed) ? 'inline-flex' : 'none';
+      document.getElementById('imp-cancel-btn').textContent = 'Done';
+
+      renderAll();
+      updateNavBadges();
+      _importRunning = false;
+      toast(`Import finished: ${done} added, ${impState.skipped.length} skipped`, done ? 'success' : 'error');
+    }
+
+    function pushImportedItem(row, id) {
+      data.items.push({
+        id: id || ('ITM' + String(data.nextItemId++).padStart(3, '0')),
+        name: row.Name, barcode: row.Barcode, category: row.Category,
+        location: row.Location, brand: row.Brand, serial: row.Serial,
+        condition: row.Condition, status: row.Status,
+        assignedTo: null, eventId: null, notes: row.Notes,
+        uidType: row.UIDType, uid: row.UID, created: row.Created,
+        org: String(row.Org || 'flex').toLowerCase(),
+        isBulk: row.IsBulk === 'TRUE', quantity: row.Quantity,
+      });
+    }
+
+    function downloadImportReport() {
+      const r = impState.result;
+      if (!r) return;
+      const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const lines = [['Type', 'Source row', 'Item', 'Detail'].map(esc).join(',')];
+      r.skipped.forEach(s => lines.push(['Skipped (duplicate)', s.sourceRow, s.name, s.reason].map(esc).join(',')));
+      r.errors.forEach(e => lines.push(['Error', e.sourceRow, '', e.reason].map(esc).join(',')));
+      r.failures.forEach(f => lines.push(['Failed write', '', f.name, f.reason].map(esc).join(',')));
+      const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'trackit-import-report.csv';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     }
 
     // ─── WORKER MODAL ─────────────────────────────────────────────
